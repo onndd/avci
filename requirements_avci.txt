@@ -1,0 +1,8 @@
+
+pandas
+numpy
+lightgbm
+optuna
+streamlit
+tensorflow
+hmmlearn
