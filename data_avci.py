@@ -18,13 +18,22 @@ def load_data(db_path, limit=50000):
     
     # Check if table exists
     cursor = conn.cursor()
-    cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='game_results';")
-    if cursor.fetchone() is None:
-        conn.close()
-        raise ValueError(f"Veritabanı bozuk veya boş: 'game_results' tablosu yok! Dizin: {os.getcwd()}, DB: {db_path}")
+    # Check for 'jetx_results' (New) or 'game_results' (Old/Fallback)
+    cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='jetx_results';")
+    table_exists = cursor.fetchone()
+    
+    table_name = 'jetx_results'
+    if not table_exists:
+        # Fallback check
+        cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='game_results';")
+        if cursor.fetchone():
+            table_name = 'game_results'
+        else:
+            conn.close()
+            raise ValueError(f"Veritabanı Uyumsuz: 'jetx_results' veya 'game_results' tablosu bulunamadı! DB: {db_path}")
 
     # conn = sqlite3.connect(db_path) # Already connected
-    query = f"SELECT * FROM game_results ORDER BY id DESC LIMIT {limit}"
+    query = f"SELECT * FROM {table_name} ORDER BY id DESC LIMIT {limit}"
     df = pd.read_sql(query, conn)
     conn.close()
     
@@ -32,8 +41,14 @@ def load_data(db_path, limit=50000):
     df = df.sort_values('id').reset_index(drop=True)
     
     # Parse Crash Point
-    # Assumes format "1.23x" or similar. Clean it.
-    df['value'] = df['result'].astype(str).str.replace('x', '', regex=False).astype(float)
+    # If 'value' column exists (New DB), use it.
+    # If 'result' column exists (Old DB), parse "1.23x".
+    if 'value' in df.columns:
+        df['value'] = df['value'].astype(float)
+    elif 'result' in df.columns:
+        df['value'] = df['result'].astype(str).str.replace('x', '', regex=False).astype(float)
+    else:
+        raise ValueError("Veri şeması hatalı: 'value' veya 'result' sütunu bulunamadı.")
     
     return df
 
