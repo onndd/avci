@@ -43,12 +43,29 @@ def load_data(db_path, limit=50000):
     # Parse Crash Point
     # If 'value' column exists (New DB), use it.
     # If 'result' column exists (Old DB), parse "1.23x".
-    if 'value' in df.columns:
-        df['value'] = df['value'].astype(float)
-    elif 'result' in df.columns:
-        df['value'] = df['result'].astype(str).str.replace('x', '', regex=False).astype(float)
-    else:
-        raise ValueError("Veri şeması hatalı: 'value' veya 'result' sütunu bulunamadı.")
+    
+    col_to_use = 'value' if 'value' in df.columns else 'result'
+    if col_to_use not in df.columns:
+         raise ValueError("Veri şeması hatalı: 'value' veya 'result' sütunu bulunamadı.")
+
+    # Robust Cleaning Function
+    def clean_currency(x):
+        if pd.isna(x): return np.nan
+        s = str(x)
+        # Remove 'x' and replace parsed line separators with space
+        s = s.replace('x', '').replace('\u2028', ' ').replace('\n', ' ').strip()
+        # If multiple numbers exist (e.g. "2.29 1.29"), take the first one
+        parts = s.split()
+        if not parts: return np.nan
+        try:
+            return float(parts[0])
+        except:
+            return np.nan
+
+    df['value'] = df[col_to_use].apply(clean_currency)
+    
+    # Drop rows where value could not be parsed
+    df = df.dropna(subset=['value']).reset_index(drop=True)
     
     return df
 
