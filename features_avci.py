@@ -99,31 +99,33 @@ def extract_features(df, windows=WINDOWS):
     df['session_sentiment'] = (roll_mean_150 / (exp_mean + 1e-9)).fillna(1.0)
     # > 1.0: Generous, < 1.0: Stingy
 
-    # 11. Recovery Speed (Toparlanma Hizi)
+    # 11. Recovery Speed (Toparlanma Hizi) - FIXED (No Lookahead)
     # How fast does it recover after an Instakill (< 1.10)?
-    # We create a feature representing the "Average of 3 games after the LAST Instakill"
-    # This involves finding the index of the last Instakill for every row.
-    # Efficient approach:
-    # 1. Identify instakills
-    is_instakill = (values < 1.10)
-    # 2. Get the 'next 3 values' average for every row (lookahead relative to that row)
-    #    (shift(-1) + shift(-2) + shift(-3)) / 3
-    #    BUT we can only use this if that row is in the PAST.
-    #    So we compute 'future_3_avg' for every row, verify it's valid (not NaNs).
-    #    Then we essentially want: For current row t, find k < t where is_instakill[k] is True and k is maximized.
-    #    Then Feature = future_3_avg[k].
+    # Logic: Find last instakill, look at the 3 games AFTER it.
+    # To be safe: We calculate the 3-game avg at shift(-3) but then shift(4) it forward?
+    # Correct Historical Logic:
+    # 1. Calculate a rolling mean of size 3. This 'rolling_3_mean' at index T is mean(T, T-1, T-2).
+    # 2. We want the mean of T+1, T+2, T+3 relative to the Instakill at T.
+    #    So at index T+3, the rolling_mean represents the recovery of the event at T.
+    # 3. Identify Instakills.
+    # 4. If T-3 was instakill, then T's rolling mean is the 'Recovery Score' for that event.
     
-    future_3_avg = (values.shift(-1) + values.shift(-2) + values.shift(-3)) / 3
-    # Use built-in forward fill matching mechanism
-    # Mask: Instakill rows get their 'future_3_avg' val. Others get NaN.
-    instakill_recovery_val = pd.Series(np.where(is_instakill, future_3_avg, np.nan))
-    # Fill forward: Current row sees the recovery value of the MOST RECENT instakill.
-    # Must shift(1) to avoid peaking at current row's potential instakill status (though recovery val is future, 
-    # we need the COMPLETED recovery. So strictly we should only show this if k+3 < current_t).
-    # For simplicity/speed in this context, we take the last *calculated* recovery.
-    # We shift(4) to ensure we are 3 steps past the instakill event to know its outcome?
-    # Yes, to be safe against data leakage.
-    df['last_recovery_score'] = instakill_recovery_val.shift(4).ffill().fillna(1.0) # Default to 1.0
+    # Step 1: 3-game moving average (This is purely historical at any point T)
+    roll_3_avg = values.shift(1).rolling(3).mean()
+    
+    # Step 2: Instakill events (< 1.10)
+    is_instakill = (values < 1.10)
+    
+    # Step 3: Align the recovery score to the event.
+    # If index (T-3) was instakill, then 'roll_3_avg' at T is the valid recovery score.
+    # We create a series where:
+    # Value = roll_3_avg IF (is_instakill shifted 3 units back is True)
+    # Else = NaN
+    valid_recovery_score = pd.Series(np.where(is_instakill.shift(3).fillna(False), roll_3_avg, np.nan))
+    
+    # Step 4: Forward Fill.
+    # At any point T, 'last_recovery_score' is the score of the most recent completed sequence.
+    df['last_recovery_score'] = valid_recovery_score.ffill().fillna(1.0) # Default 1.0
 
     # 12. Fibonacci Distance
     # Distance of 'games_since_10x' to nearest Fib number

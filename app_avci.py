@@ -109,12 +109,20 @@ try:
                     if t in models:
                         try:
                             # Verify features match
-                            # model.feature_name() could be checked here theoretically
-                            prob = models[t].predict(last_row)[0]
-                            current_probs[t] = prob
+                            required_feats = models[t].feature_name()
+                            # Check if all required features exist in df_feat columns
+                            missing_cols = [f for f in required_feats if f not in df_feat.columns]
+                            
+                            if missing_cols:
+                                st.warning(f"⚠️ Model ({t}x) Uyuşmazlığı: {missing_cols[:3]}... eksik.")
+                                current_probs[t] = -1.0
+                            else:
+                                prob = models[t].predict(last_row)[0]
+                                current_probs[t] = prob
                         except Exception as e:
                             # Model exists but prediction failed (feature mismatch?)
                             current_probs[t] = -1.0 # Error code
+                            print(f"Prediction error for {t}x: {e}")
                     else:
                         current_probs[t] = None # Feature not available
             else:

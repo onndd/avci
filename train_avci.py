@@ -66,6 +66,27 @@ def optimize_target(df, target, epochs=20):
     
     return study, study.best_params
 
+def get_best_device():
+    try:
+        import lightgbm as lgb
+        # Basic check: try to train a dummy model on GPU
+        # If unavailable, it might crash or throw warning.
+        # A simpler way is to default to 'cpu' unless user explicitly enabled GPU in setup.
+        # But we will return 'gpu' and catch error during training if needed?
+        # Safe Default: Check simple heuristic or let LightGBM handle fallback?
+        # LightGBM crashes on 'gpu' if not supported.
+        # Let's assume CPU default unless we are sure.
+        # For Colab T4 we want GPU.
+        # We can check 'nvidia-smi' presence?
+        import subprocess
+        try:
+            subprocess.check_output('nvidia-smi')
+            return 'gpu'
+        except:
+            return 'cpu'
+    except:
+        return 'cpu'
+
 def train_target_final(df, target, best_params):
     """
     Trains the final model using the provided best parameters.
@@ -81,11 +102,22 @@ def train_target_final(df, target, best_params):
     y = df[y_col]
     y_train, y_val = y.iloc[:split_idx], y.iloc[split_idx:]
     
-    # Update params for final training
-    final_params = best_params.copy()
-    final_params.update({'metric': 'binary_logloss', 'objective': 'binary', 'verbosity': -1, 'device': 'gpu'})
+    # Update params for final training (Device Auto-Detect)
+    device_type = get_best_device()
+    print(f"⚙️ Training Device: {device_type.upper()}")
     
-    model = train_lgbm(X_train, y_train, X_val, y_val, final_params)
+    final_params = best_params.copy()
+    final_params.update({'metric': 'binary_logloss', 'objective': 'binary', 'verbosity': -1, 'device': device_type})
+    
+    try:
+        model = train_lgbm(X_train, y_train, X_val, y_val, final_params)
+    except Exception as e:
+        if device_type == 'gpu':
+            print(f"⚠️ GPU Hatası: {e}. CPU ile tekrar deneniyor...")
+            final_params['device'] = 'cpu'
+            model = train_lgbm(X_train, y_train, X_val, y_val, final_params)
+        else:
+            raise e
     
     os.makedirs('models', exist_ok=True)
     model.save_model(f'models/avci_lgbm_{str(target).replace(".","_")}.txt')
