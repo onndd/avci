@@ -122,7 +122,7 @@ def extract_features(df, windows=WINDOWS):
     # Value = roll_3_avg IF (is_instakill shifted 3 units back is True)
     # Else = NaN
     # Fix FutureWarning: Ensure explicit type handling
-    shifted_instakill = is_instakill.shift(3).fillna(False).astype(bool)
+    shifted_instakill = is_instakill.shift(3).fillna(0).astype(bool)
     valid_recovery_score = pd.Series(np.where(shifted_instakill, roll_3_avg, np.nan))
     
     # Step 4: Forward Fill.
