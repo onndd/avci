@@ -14,10 +14,10 @@ SCORING_2_0 = {'TP': 150, 'TN': 1, 'FP': 150, 'FN': 20, 'PRECISION': 80}
 SCORING_3_0 = {'TP': 400, 'TN': 10, 'FP': 160, 'FN': 50, 'PRECISION': 100}
 
 # High Multipliers - Aggressive Reward but Strict Precision Bonus
-SCORING_5_0 = {'TP': 800, 'TN': 25, 'FP': 200, 'FN': 50, 'PRECISION': 150}
-SCORING_10_0 = {'TP': 2000, 'TN': 1, 'FP': 150, 'FN': 50, 'PRECISION': 200}
-SCORING_20_0 = {'TP': 5000, 'TN': 1, 'FP': 150, 'FN': 50, 'PRECISION': 300}
-SCORING_50_0 = {'TP': 15000, 'TN': 1, 'FP': 150, 'FN': 50, 'PRECISION': 500}
+SCORING_5_0 = {'TP': 800, 'TN': 25, 'FP': 300, 'FN': 50, 'PRECISION': 150}
+SCORING_10_0 = {'TP': 2000, 'TN': 1, 'FP': 500, 'FN': 50, 'PRECISION': 200}
+SCORING_20_0 = {'TP': 5000, 'TN': 1, 'FP': 700, 'FN': 50, 'PRECISION': 300}
+SCORING_50_0 = {'TP': 15000, 'TN': 1, 'FP': 700, 'FN': 50, 'PRECISION': 500}
 SCORING_100_0 = {'TP': 40000, 'TN': 1, 'FP': 150, 'FN': 50, 'PRECISION': 1000}
 SCORING_1000_0 = {'TP': 200000, 'TN': 1, 'FP': 150, 'FN': 50, 'PRECISION': 5000}
 
