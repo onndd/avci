@@ -23,5 +23,11 @@ SCORING_1000_0 = {'TP': 200000, 'TN': 1, 'FP': 150, 'FN': 50, 'PRECISION': 5000}
 # Targets to train for
 TARGETS = [1.5, 2.0, 3.0, 5.0, 10.0, 20.0, 50.0, 100.0, 1000.0]
 
+# UI Thresholds for Card Colors
+CARD_THRESHOLDS = {
+    'GOLD': 0.85,  # Probability > 0.85 -> Gold Card (if target >= 5x) or Safe Card
+    'RISK': 0.60   # Probability > 0.60 -> Risk Card (Watch)
+}
+
 DB_PATH = 'jetx.db'
 MODEL_DIR = 'models'
