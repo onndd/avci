@@ -260,8 +260,52 @@ def visualize_performance(model, X_val, y_val, target):
     
     recovery_factor = (final_profit / abs(max_drawdown)) if max_drawdown < 0 else 999.0
 
+    # --- COMPOUNDING SIMULATOR (Let It Ride) ---
+    # Logic: Bet 1. Win -> Bet (Target). Win -> Bet (Target^2)... until Target Streak
+    # If lose at any point -> Lose 1 unit initial risk.
+    
+    target_streak = 2
+    if target <= 3.0: target_streak = 4
+    elif target <= 5.0: target_streak = 3
+    
+    combo_bankroll = 0.0
+    current_combo_bet = 0.0 # Virtual money on table
+    combo_level = 0
+    combo_equity = []
+    
+    # We iterate through 'Action' (Played Games)
+    # We need sequential processing for compounding
+    
+    actions = res[res['Action'] == 1]
+    
+    for idx, row in actions.iterrows():
+        is_win = (row['Actual'] == 1)
+        
+        if combo_level == 0:
+            # Start new chain
+            combo_bankroll -= 1.0 # Cost to start
+            current_combo_bet = 1.0
+            
+        if is_win:
+            # Won! Let it ride.
+            current_combo_bet = current_combo_bet * target
+            combo_level += 1
+            
+            if combo_level >= target_streak:
+                # Target Hit! CASHOUT.
+                combo_bankroll += current_combo_bet
+                combo_level = 0
+                current_combo_bet = 0.0
+        else:
+            # Clean loss. Chain broken.
+            # We already paid the 1 unit at start.
+            # Money on table is gone.
+            combo_level = 0
+            current_combo_bet = 0.0
+            
     print(f"\n💰 [FINANCIAL PERFORMANCE]")
-    print(f"   Final Net Profit      : {final_profit:.1f} Units")
+    print(f"   Final Net Profit      : {final_profit:.1f} Units (Standard Flat Bet)")
+    print(f"   Compound Profit (Sim) : {combo_bankroll:.1f} Units (Target Streak: {target_streak})")
     print(f"   Max Drawdown          : {max_drawdown:.1f} Units")
     print(f"   Profit Factor         : {profit_factor:.2f} (Target > 1.5)")
     print(f"   Return on Inv (ROI)   : {roi:.1f}%")
