@@ -35,7 +35,7 @@ def train_lgbm(X_train, y_train, X_val, y_val, params=None):
     )
     return model
 
-def objective_lgbm(trial, X_train, y_train, X_val, y_val, scoring_params, use_gpu=True):
+def objective_lgbm(trial, X_train, y_train, X_val, y_val, scoring_params, use_gpu=True, extra_params=None):
     """
     Optuna Objective Function.
     Optimizes for PROFIT SCORE using the weights in config_avci.
@@ -53,6 +53,9 @@ def objective_lgbm(trial, X_train, y_train, X_val, y_val, scoring_params, use_gp
         'bagging_freq': trial.suggest_int('bagging_freq', 1, 7),
         'min_child_samples': trial.suggest_int('min_child_samples', 5, 100),
     }
+
+    if extra_params:
+        param.update(extra_params)
     
     if use_gpu:
         param['device'] = 'gpu'

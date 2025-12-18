@@ -4,6 +4,9 @@ import numpy as np
 import optuna
 import joblib
 import os
+import seaborn as sns
+from sklearn.metrics import confusion_matrix
+import lightgbm as lgb
 from config_avci import DB_PATH, TARGETS, SCORING_2_0, SCORING_3_0, SCORING_5_0, SCORING_10_0, SCORING_20_0, SCORING_50_0, SCORING_100_0, SCORING_1000_0
 from data_avci import load_data, add_targets
 from features_avci import extract_features
@@ -66,9 +69,19 @@ def optimize_target(df, target, epochs=20):
     scoring = get_scoring_params(target)
     print(f"Scoring Rules for {target}x: {scoring}")
     
+    # Calculate scale_pos_weight for high targets to fix low confidence
+    extra_params = {}
+    if target >= 10.0:
+        pos_count = y_train.sum()
+        neg_count = len(y_train) - pos_count
+        if pos_count > 0:
+            scale_pos_weight = neg_count / pos_count
+            extra_params['scale_pos_weight'] = scale_pos_weight
+            print(f"⚖️ Balancing Classes: scale_pos_weight = {scale_pos_weight:.2f}")
+
     # Optuna
     study = optuna.create_study(direction='maximize')
-    study.optimize(lambda trial: objective_lgbm(trial, X_train, y_train, X_val, y_val, scoring, use_gpu=True), n_trials=epochs)
+    study.optimize(lambda trial: objective_lgbm(trial, X_train, y_train, X_val, y_val, scoring, use_gpu=True, extra_params=extra_params), n_trials=epochs)
     
     print(f"Best Params: {study.best_params}")
     print(f"Best Profit Score: {study.best_value}")
@@ -128,6 +141,15 @@ def train_target_final(df, target, best_params):
     
     final_params = best_params.copy()
     final_params.update({'metric': 'binary_logloss', 'objective': 'binary', 'verbosity': -1, 'device': device_type})
+
+    # Apply same balancing logic for final training
+    if target >= 10.0:
+        pos_count = y_train.sum()
+        neg_count = len(y_train) - pos_count
+        if pos_count > 0:
+            weight = neg_count / pos_count
+            final_params['scale_pos_weight'] = weight
+            print(f"⚖️ Final Training Weight: {weight:.2f}")
     
     try:
         model = train_lgbm(X_train, y_train, X_val, y_val, final_params)
@@ -158,26 +180,34 @@ def visualize_performance(model, X_val, y_val, target):
         'Actual': y_val.values
     })
     
-    # 1. Confidence Plot (Scatter)
+    # --- 1. Confidence Plot (Scatter) ---
     plt.figure(figsize=(12, 5))
     plt.scatter(res['Game_ID'], res['Probability'], c=res['Actual'], cmap='coolwarm', alpha=0.6, s=15)
     plt.axhline(0.5, color='gray', linestyle='--')
     plt.title(f"Avci Confidence Level ({target}x) - Red: Crash, Blue: Hit")
     plt.xlabel("Game Sequence")
-    plt.ylabel("Confidence (Probability)")
+    plt.ylabel("Confidence")
     plt.colorbar(label='Actual Outcome (0/1)')
     plt.show()
+
+    # --- 2. Probability Distribution (Histogram) ---
+    plt.figure(figsize=(10, 4))
+    sns.histplot(res['Probability'], bins=50, kde=True, color='purple')
+    plt.title(f"Probability Distribution ({target}x)")
+    plt.xlabel("Predicted Probability")
+    plt.ylabel("Frequency")
+    plt.show()
     
-    # 2. Cumulative Profit (Simulation)
-    # Assume we bet 1 unit whenever prob > Threshold
-    # We need to find the 'Best Threshold' used implicitly or define one.
-    # Let's find best threshold on this Val set for the plot
-    # This matches the Optuna logic logic roughly
-    
+    # --- 3. Feature Importance ---
+    plt.figure(figsize=(10, 6))
+    lgb.plot_importance(model, max_num_features=15, importance_type='gain', figsize=(10,6), title=f'Feature Importance (Gain) - {target}x')
+    plt.show()
+
+    # --- 4. Optimization & Confusion Matrix ---
     scoring = get_scoring_params(target)
     best_thr = 0.5
     best_score = -float('inf')
-    thresholds = np.arange(0.5, 0.99, 0.01)
+    thresholds = np.arange(0.1, 0.99, 0.01) # Expanded range for high targets
     
     for thr in thresholds:
         tp = ((res['Probability'] > thr) & (res['Actual'] == 1)).sum()
@@ -187,11 +217,21 @@ def visualize_performance(model, X_val, y_val, target):
             best_score = score
             best_thr = thr
             
-    print(f"Visualizing for Optimal Threshold: {best_thr:.2f}")
+    print(f"✅ Optimal Threshold found: {best_thr:.2f}")
     
+    # Confusion Matrix at Optimal Threshold
+    preds_binary = (res['Probability'] > best_thr).astype(int)
+    cm = confusion_matrix(res['Actual'], preds_binary)
+    
+    plt.figure(figsize=(5, 4))
+    sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', cbar=False,
+                xticklabels=['Pred Crash', 'Pred WIN'],
+                yticklabels=['Actual Crash', 'Actual WIN'])
+    plt.title(f"Confusion Matrix @ {best_thr:.2f}")
+    plt.show()
+    
+    # --- 5. Cumulative Profit ---
     res['Action'] = (res['Probability'] > best_thr).astype(int)
-    # PnL: If Action=1 and Actual=1 -> +Profit (Target - 1). If Action=1 and Actual=0 -> -1.
-    # Note: Target 3.0x means Profit is 2.0 per unit.
     profit_mult = target - 1.0
     res['PnL'] = np.where(res['Action'] == 1, 
                           np.where(res['Actual'] == 1, profit_mult, -1.0), 
