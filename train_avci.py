@@ -215,7 +215,7 @@ def visualize_performance(model, X_val, y_val, target):
     plt.title(f"Confusion Matrix @ {best_thr:.2f}")
     plt.show()
     
-    # --- 5. Cumulative Profit ---
+    # --- 5. Cumulative Profit & Drawdown ---
     res['Action'] = (res['Probability'] > best_thr).astype(int)
     profit_mult = target - 1.0
     res['PnL'] = np.where(res['Action'] == 1, 
@@ -224,11 +224,76 @@ def visualize_performance(model, X_val, y_val, target):
     
     res['Equity'] = res['PnL'].cumsum()
     
+    # Calculate Drawdown
+    res['Peak'] = res['Equity'].cummax()
+    res['Drawdown'] = res['Equity'] - res['Peak']
+    max_drawdown = res['Drawdown'].min()
+    
     plt.figure(figsize=(12, 5))
-    plt.plot(res['Game_ID'], res['Equity'], color='green', linewidth=2)
-    plt.title(f"Simulated Profit/Loss Curve ({target}x) @ Threshold {best_thr:.2f}")
+    plt.plot(res['Game_ID'], res['Equity'], color='green', linewidth=2, label='Equity')
+    plt.fill_between(res['Game_ID'], res['Drawdown'], 0, color='red', alpha=0.3, label=f'Drawdown (Max: {max_drawdown:.1f})')
+    plt.title(f"Profit & Risk: Max Drawdown {max_drawdown:.1f} Units ({target}x)")
     plt.xlabel("Games Played")
     plt.ylabel("Net Units Won")
+    plt.legend()
+    plt.grid(True, alpha=0.3)
+    plt.show()
+
+    # --- 6. Pie Chart (Sabır Pastası) ---
+    played_wins = ((res['Action'] == 1) & (res['Actual'] == 1)).sum()
+    played_losses = ((res['Action'] == 1) & (res['Actual'] == 0)).sum()
+    passed = (res['Action'] == 0).sum()
+    
+    labels = ['Pas (Bekle)', 'Kayıp', 'Kazanç']
+    sizes = [passed, played_losses, played_wins]
+    colors = ['lightgray', 'salmon', 'lightgreen']
+    explode = (0, 0.1, 0.1) 
+    
+    plt.figure(figsize=(6, 6))
+    plt.pie(sizes, explode=explode, labels=labels, colors=colors, autopct='%1.1f%%', shadow=True, startangle=140)
+    plt.title(f"Sabır Pastası: Hangi Sıklıkla Oynuyor? ({target}x)")
+    plt.show()
+
+    # --- 7. Streak Analysis (Seri Grafiği) ---
+    # Only analyze streaks for played games
+    played_games = res[res['Action'] == 1].copy()
+    played_games['Win'] = (played_games['Actual'] == 1).astype(int)
+    
+    if len(played_games) > 0:
+        # Calculate streaks
+        # Group consecutive identical values
+        # Logic: compare current with prev, if diff then accumulate
+        played_games['grp'] = (played_games['Win'] != played_games['Win'].shift()).cumsum()
+        streaks = played_games.groupby(['grp', 'Win']).size().reset_index(name='count')
+        
+        max_win_streak = streaks[streaks['Win'] == 1]['count'].max() if 1 in streaks['Win'].values else 0
+        max_loss_streak = streaks[streaks['Win'] == 0]['count'].max() if 0 in streaks['Win'].values else 0
+        
+        plt.figure(figsize=(8, 4))
+        plt.bar(['Max Kazanç Serisi', 'Max Kayıp Serisi'], [max_win_streak, max_loss_streak], color=['green', 'red'])
+        plt.title(f"Seri Analizi: Peş Peşe Ne Geldi? ({target}x)")
+        plt.ylabel("Ardışık Oyun Sayısı")
+        for i, v in enumerate([max_win_streak, max_loss_streak]):
+            plt.text(i, v + 0.1, str(v), ha='center')
+        plt.show()
+
+    # --- 8. Confidence vs Accuracy (Güven Analizi) ---
+    # Show how accurate the model is at different confidence levels (Action only)
+    plt.figure(figsize=(10, 5))
+    
+    # Correct Predictions (Green)
+    correct_preds = res[(res['Action'] == 1) & (res['Actual'] == res['Action'])]
+    # Wrong Predictions (Red)
+    wrong_preds = res[(res['Action'] == 1) & (res['Actual'] != res['Action'])]
+    
+    plt.scatter(correct_preds['Game_ID'], correct_preds['Probability'], color='green', alpha=0.6, label='Doğru Tahmin', s=20)
+    plt.scatter(wrong_preds['Game_ID'], wrong_preds['Probability'], color='red', alpha=0.6, label='Yanlış Tahmin', s=20)
+    
+    plt.axhline(best_thr, color='black', linestyle='--', label=f'Eşik ({best_thr:.2f})')
+    plt.title(f"Güven Analizi: Yüksek Güven = Doğru Sonuç mu? ({target}x)")
+    plt.xlabel("Oyun No")
+    plt.ylabel("Model Güveni (Olasılık)")
+    plt.legend()
     plt.grid(True, alpha=0.3)
     plt.show()
 
