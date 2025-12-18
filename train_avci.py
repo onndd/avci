@@ -4,13 +4,12 @@ import numpy as np
 import optuna
 import joblib
 import os
-from config_avci import DB_PATH, TARGETS, SCORING_1_5, SCORING_2_0, SCORING_3_0, SCORING_5_0, SCORING_10_0, SCORING_20_0, SCORING_50_0, SCORING_100_0
+from config_avci import DB_PATH, TARGETS, SCORING_2_0, SCORING_3_0, SCORING_5_0, SCORING_10_0, SCORING_20_0, SCORING_50_0, SCORING_100_0, SCORING_1000_0
 from data_avci import load_data, add_targets
 from features_avci import extract_features
 from models_avci import train_lgbm, objective_lgbm
 
 def get_scoring_params(target):
-    if target == 1.5: return SCORING_1_5
     if target == 2.0: return SCORING_2_0
     if target == 3.0: return SCORING_3_0
     if target == 5.0: return SCORING_5_0
@@ -45,14 +44,24 @@ def optimize_target(df, target, epochs=20):
     
     # Split
     features = [c for c in df.columns if 'target' not in c and 'result' not in c and 'value' not in c and 'id' not in c]
+    features = [c for c in df.columns if 'target' not in c and 'result' not in c and 'value' not in c and 'id' not in c]
     X = df[features]
     
-    split_idx = int(len(df) * 0.85)
-    X_train, X_val = X.iloc[:split_idx], X.iloc[split_idx:]
+    # 3-Way Split: Train(70%) - Val(15%) - Meta(15%)
+    # Optimization only sees Train and Val.
+    # Meta part is HIDDEN from this step.
+    
+    n = len(df)
+    train_end = int(n * 0.70)
+    val_end = int(n * 0.85) # Val is 70% to 85%
+    
+    X_train = X.iloc[:train_end]
+    X_val = X.iloc[train_end:val_end]
     
     y_col = f'target_{str(target).replace(".","_")}'
     y = df[y_col]
-    y_train, y_val = y.iloc[:split_idx], y.iloc[split_idx:]
+    y_train = y.iloc[:train_end]
+    y_val = y.iloc[train_end:val_end]
     
     scoring = get_scoring_params(target)
     print(f"Scoring Rules for {target}x: {scoring}")
@@ -94,13 +103,24 @@ def train_target_final(df, target, best_params):
     print(f"\n--- Final Training Target: {target}x ---")
     
     # Split (Same as optimize)
+    # Split for Final Sub-Model Training
+    # Use 70% for Train, 15% for Val (Early Stopping). 
+    # The last 15% (Meta) is still HIDDEN.
+    
     features = [c for c in df.columns if 'target' not in c and 'result' not in c and 'value' not in c and 'id' not in c]
     X = df[features]
-    split_idx = int(len(df) * 0.85)
-    X_train, X_val = X.iloc[:split_idx], X.iloc[split_idx:]
+    
+    n = len(df)
+    train_end = int(n * 0.70)
+    val_end = int(n * 0.85)
+    
+    X_train = X.iloc[:train_end]
+    X_val = X.iloc[train_end:val_end]  # Used for early stopping
+    
     y_col = f'target_{str(target).replace(".","_")}'
     y = df[y_col]
-    y_train, y_val = y.iloc[:split_idx], y.iloc[split_idx:]
+    y_train = y.iloc[:train_end]
+    y_val = y.iloc[train_end:val_end]
     
     # Update params for final training (Device Auto-Detect)
     device_type = get_best_device()
@@ -187,9 +207,51 @@ def visualize_performance(model, X_val, y_val, target):
     plt.grid(True, alpha=0.3)
     plt.show()
 
+
+def train_meta_model(df, models, target=100.0):
+    """
+    Trains a simple Ensemble Meta-Model on the 'Hidden' 15% data.
+    """
+    print(f"\n--- Training Meta-Model (Ensemble) for {target}x ---")
+    
+    features = [c for c in df.columns if 'target' not in c and 'result' not in c and 'value' not in c and 'id' not in c]
+    X = df[features]
+    
+    n = len(df)
+    meta_start = int(n * 0.85)
+    
+    # Meta Data (The part sub-models haven't seen during training/opt)
+    X_meta = X.iloc[meta_start:].copy()
+    y_col = f'target_{str(target).replace(".","_")}'
+    y_meta = df[y_col].iloc[meta_start:]
+    
+    # 1. Generate Sub-Model Predictions
+    meta_features = pd.DataFrame(index=X_meta.index)
+    
+    print("Generating predictions from sub-models...")
+    for t_sub, model in models.items():
+        try:
+            preds = model.predict(X_meta)
+            meta_features[f'pred_{t_sub}'] = preds
+        except Exception as e:
+            print(f"Skipping model {t_sub}x in ensemble: {e}")
+            
+    if meta_features.empty:
+        print("No sub-model predictions available.")
+        return None
+        
+    # 2. Simple Weighted Average or Logistic Regression?
+    # For now, let's do a simple correlation/weight check
+    # Or just return this dataframe for the user to analyze in notebook
+    
+    meta_features['Actual'] = y_meta
+    
+    print("Ensemble Data Prepared. (Showing first 5 rows)")
+    print(meta_features.head())
+    
+    return meta_features
+
 def run_training():
     # Legacy wrapper
-    df = load_and_prep()
-    for t in TARGETS:
-        model, X_val, y_val, _ = train_target(df, t, epochs=20)
-        visualize_performance(model, X_val, y_val, t)
+    pass
+

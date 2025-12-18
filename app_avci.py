@@ -177,10 +177,15 @@ try:
                     prob_val = float(start_prob)
                     prob_str = f"%{prob_val*100:.1f}"
                     
-                    if prob_val > CARD_THRESHOLDS['GOLD']:
+                    # Get thresholds for this target or default
+                    thresholds = CARD_THRESHOLDS.get(t, CARD_THRESHOLDS['DEFAULT'])
+                    gold_thr = thresholds['GOLD']
+                    risk_thr = thresholds['RISK']
+
+                    if prob_val > gold_thr:
                         css_class = "card-gold" if t >= 5.0 else "card-safe"
                         status = "YAKALA!"
-                    elif prob_val > CARD_THRESHOLDS['RISK']:
+                    elif prob_val > risk_thr:
                         css_class = "card-risk"
                         status = "İzle"
                     else:
@@ -201,7 +206,7 @@ try:
         st.info("Veritabanı bağlantısı bekleniyor... (Lütfen 'Colab' tarafının çalıştığından emin olun)")
 
     st.write("---")
-    st.caption(f"Avcı Modeli v0.1.3 | Gold Eşik: >%{CARD_THRESHOLDS['GOLD']*100:.0f}")
+    st.caption(f"Avcı Modeli v0.1.5 | Sniper Mode Active (100x @ {CARD_THRESHOLDS.get(100.0, {'GOLD':0}).get('GOLD', 0)*100:.0f}%)")
 
     # --- 4. Safe Auto Refresh ---
     if auto_refresh:
