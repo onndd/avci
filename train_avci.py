@@ -169,6 +169,7 @@ def train_target_final(df, target, best_params):
 def visualize_performance(model, X_val, y_val, target):
     """
     Plots Confidence vs Game Time and Cumulative Profit.
+    Also prints detailed text reports for Agent Analysis.
     """
     preds_proba = model.predict(X_val)
     
@@ -179,20 +180,17 @@ def visualize_performance(model, X_val, y_val, target):
         'Actual': y_val.values
     })
     
-    # --- 1. Probability Distribution (Histogram) - REMOVED (Confusing) ---
-    # --- 2. Confidence Plot - REMOVED (Confusing) ---
-    
-    
-    # --- 3. Feature Importance ---
+    # --- 1. Feature Importance ---
+    print(f"\n📊 --- REPORT FOR TARGET {target}x ---")
     plt.figure(figsize=(10, 6))
     lgb.plot_importance(model, max_num_features=15, importance_type='gain', figsize=(10,6), title=f'Feature Importance (Gain) - {target}x')
     plt.show()
 
-    # --- 4. Optimization & Confusion Matrix ---
+    # --- 2. Optimization & Threshold Finding ---
     scoring = get_scoring_params(target)
     best_thr = 0.5
     best_score = -float('inf')
-    thresholds = np.arange(0.1, 0.99, 0.01) # Expanded range for high targets
+    thresholds = np.arange(0.1, 0.99, 0.01) # Expanded range
     
     for thr in thresholds:
         tp = ((res['Probability'] > thr) & (res['Actual'] == 1)).sum()
@@ -204,10 +202,32 @@ def visualize_performance(model, X_val, y_val, target):
             
     print(f"✅ Optimal Threshold found: {best_thr:.2f}")
     
-    # Confusion Matrix at Optimal Threshold
-    preds_binary = (res['Probability'] > best_thr).astype(int)
-    cm = confusion_matrix(res['Actual'], preds_binary)
+    # --- 3. Confusion Matrix & Detailed Counts ---
+    res['Action'] = (res['Probability'] > best_thr).astype(int)
     
+    tp = ((res['Action'] == 1) & (res['Actual'] == 1)).sum()
+    fp = ((res['Action'] == 1) & (res['Actual'] == 0)).sum()
+    tn = ((res['Action'] == 0) & (res['Actual'] == 0)).sum()
+    fn = ((res['Action'] == 0) & (res['Actual'] == 1)).sum()
+    
+    total_games = len(res)
+    played = tp + fp
+    win_rate = (tp / played * 100) if played > 0 else 0.0
+    
+    print(f"\n🔢 [CONFUSION MATRIX & STATS]")
+    print(f"   Total Games Evaluated : {total_games}")
+    print(f"   played (Action=1)     : {played} ({played/total_games*100:.1f}%)")
+    print(f"   Passed (Action=0)     : {tn + fn}")
+    print(f"   ---------------------------")
+    print(f"   Wins (TP)             : {tp}")
+    print(f"   Losses (FP)           : {fp}")
+    print(f"   Win Rate (Accuracy)   : {win_rate:.2f}%")
+    print(f"   ---------------------------")
+    print(f"   Missed Wins (FN)      : {fn}")
+    print(f"   Avoided Crash (TN)    : {tn}")
+
+    # Plot Confusion Matrix
+    cm = confusion_matrix(res['Actual'], res['Action'])
     plt.figure(figsize=(5, 4))
     sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', cbar=False,
                 xticklabels=['Pred Crash', 'Pred WIN'],
@@ -215,34 +235,52 @@ def visualize_performance(model, X_val, y_val, target):
     plt.title(f"Confusion Matrix @ {best_thr:.2f}")
     plt.show()
     
-    # --- 5. Cumulative Profit & Drawdown ---
-    res['Action'] = (res['Probability'] > best_thr).astype(int)
+    # --- 4. Cumulative Profit & Drawdown ---
     profit_mult = target - 1.0
     res['PnL'] = np.where(res['Action'] == 1, 
                           np.where(res['Actual'] == 1, profit_mult, -1.0), 
                           0.0)
     
     res['Equity'] = res['PnL'].cumsum()
-    
-    # Calculate Drawdown
     res['Peak'] = res['Equity'].cummax()
     res['Drawdown'] = res['Equity'] - res['Peak']
     max_drawdown = res['Drawdown'].min()
+    final_profit = res['Equity'].iloc[-1]
+    
+    # Advanced Metrics
+    gross_profit = res[res['PnL'] > 0]['PnL'].sum()
+    gross_loss = abs(res[res['PnL'] < 0]['PnL'].sum())
+    
+    profit_factor = (gross_profit / gross_loss) if gross_loss > 0 else 999.0
+    total_invested = played  # Assuming 1 unit per bet
+    roi = (final_profit / total_invested * 100) if total_invested > 0 else 0.0
+    
+    win_rate_dec = win_rate / 100
+    ev_per_trade = (win_rate_dec * profit_mult) - ((1 - win_rate_dec) * 1.0)
+    
+    recovery_factor = (final_profit / abs(max_drawdown)) if max_drawdown < 0 else 999.0
+
+    print(f"\n💰 [FINANCIAL PERFORMANCE]")
+    print(f"   Final Net Profit      : {final_profit:.1f} Units")
+    print(f"   Max Drawdown          : {max_drawdown:.1f} Units")
+    print(f"   Profit Factor         : {profit_factor:.2f} (Target > 1.5)")
+    print(f"   Return on Inv (ROI)   : {roi:.1f}%")
+    print(f"   Expected Value (EV)   : {ev_per_trade:.2f} Units/Bet")
+    print(f"   Recovery Factor       : {recovery_factor:.2f} (Higher is better)")
     
     plt.figure(figsize=(12, 5))
     plt.plot(res['Game_ID'], res['Equity'], color='green', linewidth=2, label='Equity')
     plt.fill_between(res['Game_ID'], res['Drawdown'], 0, color='red', alpha=0.3, label=f'Drawdown (Max: {max_drawdown:.1f})')
     plt.title(f"Profit & Risk: Max Drawdown {max_drawdown:.1f} Units ({target}x)")
-    plt.xlabel("Games Played")
-    plt.ylabel("Net Units Won")
     plt.legend()
     plt.grid(True, alpha=0.3)
     plt.show()
 
-    # --- 6. Pie Chart (Sabır Pastası) ---
-    played_wins = ((res['Action'] == 1) & (res['Actual'] == 1)).sum()
-    played_losses = ((res['Action'] == 1) & (res['Actual'] == 0)).sum()
-    passed = (res['Action'] == 0).sum()
+    # --- 5. Pie Chart Info ---
+    # Already printed in stats section above, simply plotting
+    played_wins = tp
+    played_losses = fp
+    passed = tn + fn
     
     labels = ['Pas (Bekle)', 'Kayıp', 'Kazanç']
     sizes = [passed, played_losses, played_wins]
@@ -254,21 +292,27 @@ def visualize_performance(model, X_val, y_val, target):
     plt.title(f"Sabır Pastası: Hangi Sıklıkla Oynuyor? ({target}x)")
     plt.show()
 
-    # --- 7. Streak Analysis (Seri Grafiği) ---
-    # Only analyze streaks for played games
+    # --- 6. Streak Analysis ---
     played_games = res[res['Action'] == 1].copy()
     played_games['Win'] = (played_games['Actual'] == 1).astype(int)
     
+    max_win_streak = 0
+    max_loss_streak = 0
+    
     if len(played_games) > 0:
-        # Calculate streaks
-        # Group consecutive identical values
-        # Logic: compare current with prev, if diff then accumulate
         played_games['grp'] = (played_games['Win'] != played_games['Win'].shift()).cumsum()
         streaks = played_games.groupby(['grp', 'Win']).size().reset_index(name='count')
         
-        max_win_streak = streaks[streaks['Win'] == 1]['count'].max() if 1 in streaks['Win'].values else 0
-        max_loss_streak = streaks[streaks['Win'] == 0]['count'].max() if 0 in streaks['Win'].values else 0
-        
+        if 1 in streaks['Win'].values:
+            max_win_streak = streaks[streaks['Win'] == 1]['count'].max()
+        if 0 in streaks['Win'].values:
+            max_loss_streak = streaks[streaks['Win'] == 0]['count'].max()
+            
+    print(f"\n🔥 [STREAK ANALYSIS]")
+    print(f"   Max Winning Streak    : {max_win_streak}")
+    print(f"   Max Losing Streak     : {max_loss_streak}")
+    
+    if len(played_games) > 0:
         plt.figure(figsize=(8, 4))
         plt.bar(['Max Kazanç Serisi', 'Max Kayıp Serisi'], [max_win_streak, max_loss_streak], color=['green', 'red'])
         plt.title(f"Seri Analizi: Peş Peşe Ne Geldi? ({target}x)")
@@ -277,22 +321,21 @@ def visualize_performance(model, X_val, y_val, target):
             plt.text(i, v + 0.1, str(v), ha='center')
         plt.show()
 
-    # --- 8. Confidence vs Accuracy (Güven Analizi) ---
-    # Show how accurate the model is at different confidence levels (Action only)
+    # --- 7. Confidence Distribution Stats ---
+    print(f"\n🧠 [MODEL CONFIDENCE STATS]")
+    print(f"   Mean Probability      : {res['Probability'].mean():.4f}")
+    print(f"   Max Probability       : {res['Probability'].max():.4f}")
+    print(f"   Min Probability       : {res['Probability'].min():.4f}")
+    print(f"📊 --------------------------- end report ---------------------------\n")
+
+    # Confidence Plot
     plt.figure(figsize=(10, 5))
-    
-    # Correct Predictions (Green)
     correct_preds = res[(res['Action'] == 1) & (res['Actual'] == res['Action'])]
-    # Wrong Predictions (Red)
     wrong_preds = res[(res['Action'] == 1) & (res['Actual'] != res['Action'])]
-    
     plt.scatter(correct_preds['Game_ID'], correct_preds['Probability'], color='green', alpha=0.6, label='Doğru Tahmin', s=20)
     plt.scatter(wrong_preds['Game_ID'], wrong_preds['Probability'], color='red', alpha=0.6, label='Yanlış Tahmin', s=20)
-    
     plt.axhline(best_thr, color='black', linestyle='--', label=f'Eşik ({best_thr:.2f})')
     plt.title(f"Güven Analizi: Yüksek Güven = Doğru Sonuç mu? ({target}x)")
-    plt.xlabel("Oyun No")
-    plt.ylabel("Model Güveni (Olasılık)")
     plt.legend()
     plt.grid(True, alpha=0.3)
     plt.show()
