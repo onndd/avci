@@ -7,7 +7,7 @@ import os
 import seaborn as sns
 from sklearn.metrics import confusion_matrix
 import lightgbm as lgb
-from config_avci import DB_PATH, TARGETS, SCORING_2_0, SCORING_3_0, SCORING_5_0, SCORING_10_0, SCORING_20_0, SCORING_50_0, SCORING_100_0, SCORING_1000_0
+from config_avci import DB_PATH, TARGETS, SCORING_2_0, SCORING_3_0, SCORING_5_0, SCORING_10_0, SCORING_20_0, SCORING_50_0
 from data_avci import load_data, add_targets
 from features_avci import extract_features
 from models_avci import train_lgbm, objective_lgbm
@@ -19,8 +19,6 @@ def get_scoring_params(target):
     if target == 10.0: return SCORING_10_0
     if target == 20.0: return SCORING_20_0
     if target == 50.0: return SCORING_50_0
-    if target == 100.0: return SCORING_100_0
-    if target == 1000.0: return SCORING_1000_0
     return SCORING_3_0 # Default
 
 import matplotlib.pyplot as plt
@@ -69,15 +67,15 @@ def optimize_target(df, target, epochs=20):
     scoring = get_scoring_params(target)
     print(f"Scoring Rules for {target}x: {scoring}")
     
-    # Calculate scale_pos_weight for high targets to fix low confidence
+    # Calculate scale_pos_weight: DISABLED (User request: Avoid "play everything" strategy)
     extra_params = {}
-    if target >= 10.0:
-        pos_count = y_train.sum()
-        neg_count = len(y_train) - pos_count
-        if pos_count > 0:
-            scale_pos_weight = neg_count / pos_count
-            extra_params['scale_pos_weight'] = scale_pos_weight
-            print(f"⚖️ Balancing Classes: scale_pos_weight = {scale_pos_weight:.2f}")
+    # if target >= 10.0:
+    #     pos_count = y_train.sum()
+    #     neg_count = len(y_train) - pos_count
+    #     if pos_count > 0:
+    #         scale_pos_weight = neg_count / pos_count
+    #         extra_params['scale_pos_weight'] = scale_pos_weight
+    #         print(f"⚖️ Balancing Classes: scale_pos_weight = {scale_pos_weight:.2f}")
 
     # Optuna
     study = optuna.create_study(direction='maximize')
@@ -143,13 +141,14 @@ def train_target_final(df, target, best_params):
     final_params.update({'metric': 'binary_logloss', 'objective': 'binary', 'verbosity': -1, 'device': device_type})
 
     # Apply same balancing logic for final training
-    if target >= 10.0:
-        pos_count = y_train.sum()
-        neg_count = len(y_train) - pos_count
-        if pos_count > 0:
-            weight = neg_count / pos_count
-            final_params['scale_pos_weight'] = weight
-            print(f"⚖️ Final Training Weight: {weight:.2f}")
+    # Apply same balancing logic: DISABLED
+    # if target >= 10.0:
+    #     pos_count = y_train.sum()
+    #     neg_count = len(y_train) - pos_count
+    #     if pos_count > 0:
+    #         weight = neg_count / pos_count
+    #         final_params['scale_pos_weight'] = weight
+    #         print(f"⚖️ Final Training Weight: {weight:.2f}")
     
     try:
         model = train_lgbm(X_train, y_train, X_val, y_val, final_params)
@@ -180,23 +179,9 @@ def visualize_performance(model, X_val, y_val, target):
         'Actual': y_val.values
     })
     
-    # --- 1. Confidence Plot (Scatter) ---
-    plt.figure(figsize=(12, 5))
-    plt.scatter(res['Game_ID'], res['Probability'], c=res['Actual'], cmap='coolwarm', alpha=0.6, s=15)
-    plt.axhline(0.5, color='gray', linestyle='--')
-    plt.title(f"Avci Confidence Level ({target}x) - Red: Crash, Blue: Hit")
-    plt.xlabel("Game Sequence")
-    plt.ylabel("Confidence")
-    plt.colorbar(label='Actual Outcome (0/1)')
-    plt.show()
-
-    # --- 2. Probability Distribution (Histogram) ---
-    plt.figure(figsize=(10, 4))
-    sns.histplot(res['Probability'], bins=50, kde=True, color='purple')
-    plt.title(f"Probability Distribution ({target}x)")
-    plt.xlabel("Predicted Probability")
-    plt.ylabel("Frequency")
-    plt.show()
+    # --- 1. Probability Distribution (Histogram) - REMOVED (Confusing) ---
+    # --- 2. Confidence Plot - REMOVED (Confusing) ---
+    
     
     # --- 3. Feature Importance ---
     plt.figure(figsize=(10, 6))

@@ -22,7 +22,7 @@ SCORING_100_0 = {'TP': 40000, 'TN': 1, 'FP': 150, 'FN': 50, 'PRECISION': 1000}
 SCORING_1000_0 = {'TP': 200000, 'TN': 1, 'FP': 150, 'FN': 50, 'PRECISION': 5000}
 
 # Targets to train for (Removed 1.5)
-TARGETS = [2.0, 3.0, 5.0, 10.0, 20.0, 50.0, 100.0, 1000.0]
+TARGETS = [2.0, 3.0, 5.0, 10.0, 20.0, 50.0]
 
 # UI Thresholds for Card Colors (Target-Specific Overrides Supported in App)
 # Default is safely conservative.

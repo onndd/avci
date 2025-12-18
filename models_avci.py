@@ -76,7 +76,7 @@ def objective_lgbm(trial, X_train, y_train, X_val, y_val, scoring_params, use_gp
     
     # Find Best Threshold
     best_score = -float('inf')
-    thresholds = np.arange(0.50, 0.99, 0.01)
+    thresholds = np.arange(0.10, 0.99, 0.01)
     
     for thr in thresholds:
         preds = (preds_proba > thr).astype(int)
