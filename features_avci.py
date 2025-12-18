@@ -121,11 +121,13 @@ def extract_features(df, windows=WINDOWS):
     # We create a series where:
     # Value = roll_3_avg IF (is_instakill shifted 3 units back is True)
     # Else = NaN
-    valid_recovery_score = pd.Series(np.where(is_instakill.shift(3).fillna(False), roll_3_avg, np.nan))
+    # Fix FutureWarning: Ensure explicit type handling
+    shifted_instakill = is_instakill.shift(3).fillna(False).infer_objects(copy=False)
+    valid_recovery_score = pd.Series(np.where(shifted_instakill, roll_3_avg, np.nan))
     
     # Step 4: Forward Fill.
     # At any point T, 'last_recovery_score' is the score of the most recent completed sequence.
-    df['last_recovery_score'] = valid_recovery_score.ffill().fillna(1.0) # Default 1.0
+    df['last_recovery_score'] = valid_recovery_score.ffill().infer_objects(copy=False).fillna(1.0) # Default 1.0
 
     # 12. Fibonacci Distance
     # Distance of 'games_since_10x' to nearest Fib number
