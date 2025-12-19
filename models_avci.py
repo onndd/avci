@@ -16,6 +16,12 @@ def train_lgbm(X_train, y_train, X_val, y_val, params=None):
             'boosting_type': 'gbdt',
             'n_estimators': 1000
         }
+        
+    # Fixed Seed for Reproducibility
+    params['seed'] = 42
+    params['feature_fraction_seed'] = 42
+    params['bagging_seed'] = 42
+    params['deterministic'] = True
     
     # GPU Support
     if params.get('device') == 'gpu':
@@ -115,6 +121,10 @@ def objective_lgbm(trial, X_train, y_train, X_val, y_val, scoring_params, use_gp
         'bagging_fraction': trial.suggest_float('bagging_fraction', 0.5, 1.0),
         'bagging_freq': trial.suggest_int('bagging_freq', 1, 7),
         'min_child_samples': trial.suggest_int('min_child_samples', 20, 100),
+        'seed': 42,
+        'feature_fraction_seed': 42,
+        'bagging_seed': 42,
+        'deterministic': True
     }
 
     if extra_params:
