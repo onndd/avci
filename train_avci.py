@@ -36,12 +36,12 @@ def load_and_prep(limit=100000):
     df = add_targets(df, TARGETS)
     return df
 
-def optimize_target(df, target, epochs=20):
+def optimize_target(df, target, n_trials=20):
     """
     Runs Optuna optimization for a specific target and returns the study and best parameters.
     Does NOT train the final model.
     """
-    print(f"\n--- Optimizing Target: {target}x (Trials: {epochs}) ---")
+    print(f"\n--- Optimizing Target: {target}x (Trials: {n_trials}) ---")
     
     # Split
     features = [c for c in df.columns if 'target' not in c and 'result' not in c and 'value' not in c and 'id' not in c]
@@ -79,7 +79,7 @@ def optimize_target(df, target, epochs=20):
 
     # Optuna
     study = optuna.create_study(direction='maximize')
-    study.optimize(lambda trial: objective_lgbm(trial, X_train, y_train, X_val, y_val, scoring, use_gpu=True, extra_params=extra_params), n_trials=epochs)
+    study.optimize(lambda trial: objective_lgbm(trial, X_train, y_train, X_val, y_val, scoring, use_gpu=True, extra_params=extra_params), n_trials=n_trials)
     
     print(f"Best Params: {study.best_params}")
     print(f"Best Profit Score: {study.best_value}")
