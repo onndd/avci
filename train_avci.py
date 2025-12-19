@@ -84,7 +84,7 @@ def optimize_target(df, target, n_trials=20):
     print(f"Best Params: {study.best_params}")
     print(f"Best Profit Score: {study.best_value}")
     
-    return study, study.best_params
+    return study
 
 def get_best_device():
     try:
@@ -534,7 +534,7 @@ def run_training():
         print(f"{'='*40}")
         
         # A. Optimization
-        study = optimize_target(df, target, n_trials=30)
+        study = optimize_target(df, target, n_trials=100)
         best_params = study.best_trial.params
         
         # B. Final Training
