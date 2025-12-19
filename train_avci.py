@@ -422,6 +422,53 @@ def visualize_performance(model, X_val, y_val, target):
     fig.tight_layout()
     plt.show()
 
+    # --- 9. Save JSON Report (Agent Readable) ---
+    import json
+    report_file = "reports/latest_training_metrics.json"
+    os.makedirs("reports", exist_ok=True)
+    
+    # Prepare Stats
+    # 1. Feature Importance Extraction
+    importance = model.feature_importance(importance_type='gain')
+    feature_names = model.feature_name()
+    feat_imp = pd.DataFrame({'feature': feature_names, 'importance': importance})
+    feat_imp = feat_imp.sort_values(by='importance', ascending=False).head(10)
+    feat_imp_dict = feat_imp.set_index('feature')['importance'].to_dict()
+
+    stats = {
+        "target": target,
+        "best_threshold": f"{best_thr:.2f}",
+        "win_rate": f"{win_rate:.2f}%",
+        "total_trades": int(played),
+        "wins": int(tp),
+        "losses": int(fp),
+        "net_profit": f"{final_profit:.2f}",
+        "max_drawdown": f"{max_drawdown:.2f}",
+        "confidence_bins": bin_stats[['Count', 'Win_Rate']].to_dict('index'),
+        "streak_analysis": {
+            "max_win_streak": int(max_win_streak),
+            "max_loss_streak": int(max_loss_streak)
+        },
+        "feature_importance": feat_imp_dict
+    }
+    
+    # Load existing or create new
+    if os.path.exists(report_file):
+        try:
+            with open(report_file, 'r') as f:
+                full_report = json.load(f)
+        except:
+            full_report = {}
+    else:
+        full_report = {}
+        
+    full_report[str(target)] = stats
+    
+    with open(report_file, 'w') as f:
+        json.dump(full_report, f, indent=4)
+        
+    print(f"\n📝 Report saved to {report_file}")
+
 
 def train_meta_model(df, models, target=100.0):
     """
@@ -467,6 +514,50 @@ def train_meta_model(df, models, target=100.0):
     return meta_features
 
 def run_training():
-    # Legacy wrapper
-    pass
+    """
+    Orchestrates the full local training pipeline.
+    Useful for running via terminal: 'python train_avci.py'
+    """
+    print("🦅 AVCI LOCAL TRAINING ORCHESTRATOR STARTED 🦅")
+    
+    # 1. Load Data
+    print("\n📂 Loading Data...")
+    df = load_and_prep(limit=200000) # Use a good amount of history
+    if df is None: return
+
+    trained_models = {}
+    
+    # 2. Train Each Target
+    for target in TARGETS:
+        print(f"\n{'='*40}")
+        print(f"🎯 PROCESSING TARGET: {target}x")
+        print(f"{'='*40}")
+        
+        # A. Optimization
+        study = optimize_target(df, target, n_trials=30)
+        best_params = study.best_trial.params
+        
+        # B. Final Training
+        model, X_val, y_val = train_target_final(df, target, best_params)
+        
+        # C. Reporting
+        visualize_performance(model, X_val, y_val, target)
+        
+        trained_models[target] = model
+        
+    # 3. Train Meta Model
+    print(f"\n{'='*40}")
+    print(f"🧠 TRAINING META-MODEL (ENSEMBLE)")
+    print(f"{'='*40}")
+    
+    if len(trained_models) > 0:
+        meta_results = train_meta_model(df, trained_models, target=50.0)
+        if meta_results is not None:
+            print("\nMeta-Model Sample Predictions:")
+            print(meta_results.tail())
+            
+    print("\n✅ ALL LOCAL TRAINING COMPLETED SUCCESSFULLY.")
+
+if __name__ == "__main__":
+    run_training()
 
