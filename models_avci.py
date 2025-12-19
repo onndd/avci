@@ -114,7 +114,7 @@ def objective_lgbm(trial, X_train, y_train, X_val, y_val, scoring_params, use_gp
         'feature_fraction': trial.suggest_float('feature_fraction', 0.5, 1.0),
         'bagging_fraction': trial.suggest_float('bagging_fraction', 0.5, 1.0),
         'bagging_freq': trial.suggest_int('bagging_freq', 1, 7),
-        'min_child_samples': trial.suggest_int('min_child_samples', 5, 100),
+        'min_child_samples': trial.suggest_int('min_child_samples', 20, 100),
     }
 
     if extra_params:
