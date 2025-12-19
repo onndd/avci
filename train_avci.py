@@ -384,6 +384,44 @@ def visualize_performance(model, X_val, y_val, target):
     plt.grid(True, alpha=0.3)
     plt.show()
 
+    # --- 8. Confidence Interval Analysis (Binning) ---
+    print(f"\n🔬 [CONFIDENCE BINNING ANALYSIS]")
+    bins = [0.0, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]
+    labels = ['0-40%', '40-50%', '50-60%', '60-70%', '70-80%', '80-90%', '90-100%']
+    res['Conf_Bin'] = pd.cut(res['Probability'], bins=bins, labels=labels)
+    
+    bin_stats = res.groupby('Conf_Bin', observed=False).agg(
+        Count=('Actual', 'count'),
+        Wins=('Actual', 'sum'),
+        Mean_Prob=('Probability', 'mean')
+    )
+    bin_stats['Win_Rate'] = (bin_stats['Wins'] / bin_stats['Count'] * 100).fillna(0)
+    
+    print(bin_stats[['Count', 'Wins', 'Win_Rate']])
+    
+    # Plot Binning
+    fig, ax1 = plt.subplots(figsize=(10, 5))
+    
+    # Bar Chart (Volume)
+    ax1.set_xlabel('Güven Aralığı (Confidence Bin)')
+    ax1.set_ylabel('İşlem Sayısı', color='tab:blue')
+    ax1.bar(bin_stats.index, bin_stats['Count'], color='tab:blue', alpha=0.6, label='İşlem Hacmi')
+    ax1.tick_params(axis='y', labelcolor='tab:blue')
+    
+    # Line Chart (Win Rate)
+    ax2 = ax1.twinx()
+    ax2.set_ylabel('Kazanma Oranı (%)', color='tab:green')
+    ax2.plot(bin_stats.index, bin_stats['Win_Rate'], color='tab:green', marker='o', linewidth=2, label='Win Rate')
+    ax2.tick_params(axis='y', labelcolor='tab:green')
+    ax2.set_ylim(0, 100)
+    
+    # Threshold Line
+    ax2.axhline(50, color='grey', linestyle='--', alpha=0.5)
+    
+    plt.title(f"Güven Aralığı Analizi: Model Nerede Daha Başarılı? ({target}x)")
+    fig.tight_layout()
+    plt.show()
+
 
 def train_meta_model(df, models, target=100.0):
     """

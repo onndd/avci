@@ -81,3 +81,32 @@ def add_targets(df, targets):
     # We want to predict current row's value based on PREVIOUS rows.
     # But usually features are shifted. Here we label the row with its own outcome.
     return df
+
+def save_new_data(values):
+    """
+    Saves a list of float values to the database.
+    Ensures table exists.
+    """
+    import os
+    db_path = 'jetx.db'
+    
+    conn = sqlite3.connect(db_path)
+    cursor = conn.cursor()
+    
+    # Ensure table exists (using new schema)
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS jetx_results (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            value REAL,
+            timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+    
+    # Insert values
+    # values provided as [oldest, ..., newest] -> Insert in that order so IDs increment correctly.
+    data = [(v,) for v in values]
+    cursor.executemany("INSERT INTO jetx_results (value) VALUES (?)", data)
+    
+    conn.commit()
+    conn.close()
+    return True
