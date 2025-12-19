@@ -239,10 +239,17 @@ if page == "🦅 Canlı Takip":
             with col_targets:
                 st.subheader("Hedef Kartları")
                 
-                cols = st.columns(len(TARGETS))
+                # Grid Layout: 2 Rows of 4 Columns (since we have 8 targets)
+                # Row 1: 2.0, 3.0, 5.0, 10.0
+                # Row 2: 20.0, 30.0, 40.0, 50.0
                 
-                for idx, t in enumerate(TARGETS):
-                    start_prob = current_probs.get(t, None) if df_feat is not None else None
+                # Split targets into chunks of 4
+                rows = [TARGETS[i:i + 4] for i in range(0, len(TARGETS), 4)]
+                
+                for row_targets in rows:
+                    cols = st.columns(len(row_targets))
+                    for idx, t in enumerate(row_targets):
+                        start_prob = current_probs.get(t, None) if df_feat is not None else None
                     
 
                     with cols[idx]:
