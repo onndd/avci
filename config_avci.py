@@ -10,7 +10,7 @@ WINDOWS = [15, 25, 50, 100, 200, 300]
 
 # SCORING_1_5 Removed.
 
-SCORING_2_0 = {'TP': 135, 'TN': 10, 'FP': 140, 'FN': 35, 'PRECISION': 80}
+SCORING_2_0 = {'TP': 135, 'TN': 10, 'FP': 140, 'FN': 35, 'PRECISION': 90}
 SCORING_3_0 = {'TP': 400, 'TN': 10, 'FP': 300, 'FN': 50, 'PRECISION': 100}
 
 # High Multipliers - Aggressive Reward but Strict Precision Bonus
