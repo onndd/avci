@@ -9,7 +9,7 @@ from sklearn.metrics import confusion_matrix
 import lightgbm as lgb
 from config_avci import DB_PATH, TARGETS, SCORING_2_0, SCORING_3_0, SCORING_5_0, SCORING_10_0, SCORING_20_0, SCORING_50_0
 from data_avci import load_data, add_targets
-from features_avci import extract_features
+from features_avci import extract_features, get_model_features
 from models_avci import train_lgbm, objective_lgbm
 
 def get_scoring_params(target):
@@ -44,8 +44,8 @@ def optimize_target(df, target, n_trials=20):
     print(f"\n--- Optimizing Target: {target}x (Trials: {n_trials}) ---")
     
     # Split
-    features = [c for c in df.columns if 'target' not in c and 'result' not in c and 'value' not in c and 'id' not in c]
-    features = [c for c in df.columns if 'target' not in c and 'result' not in c and 'value' not in c and 'id' not in c]
+    # Filter features using centralized logic
+    features = get_model_features(target, df.columns)
     X = df[features]
     
     # 3-Way Split: Train(70%) - Val(15%) - Meta(15%)
@@ -118,7 +118,10 @@ def train_target_final(df, target, best_params):
     # Use 70% for Train, 15% for Val (Early Stopping). 
     # The last 15% (Meta) is still HIDDEN.
     
-    features = [c for c in df.columns if 'target' not in c and 'result' not in c and 'value' not in c and 'id' not in c]
+    # Filter features using centralized logic
+    features = get_model_features(target, df.columns)
+    print(f"ℹ️ Target {target}x Strategy: Using {len(features)} selected features.")
+
     X = df[features]
     
     n = len(df)
@@ -265,7 +268,8 @@ def visualize_performance(model, X_val, y_val, target):
     # If lose at any point -> Lose 1 unit initial risk.
     
     target_streak = 2
-    if target <= 3.0: target_streak = 4
+    if target == 2.0: target_streak = 5 # User request: 5 times for 2x
+    elif target <= 3.0: target_streak = 4
     elif target <= 5.0: target_streak = 3
     
     combo_bankroll = 0.0
@@ -424,8 +428,15 @@ def visualize_performance(model, X_val, y_val, target):
 
     # --- 9. Save JSON Report (Agent Readable) ---
     import json
-    report_file = "reports/latest_training_metrics.json"
+    # --- 9. Save JSON Report (Agent Readable) ---
+    import json
+    report_file = "reports/v0.9.4_training_metrics.json"
     os.makedirs("reports", exist_ok=True)
+    
+    # ... (code omitted) ...
+
+    # --- 9b. Save Feature Analysis Report (Separate File) ---
+    feature_report_file = "reports/v0.9.4_feature_analysis.json"
     
     # Prepare Stats
     # 1. Feature Importance Extraction
@@ -449,6 +460,8 @@ def visualize_performance(model, X_val, y_val, target):
             "max_win_streak": int(max_win_streak),
             "max_loss_streak": int(max_loss_streak)
         },
+        "compound_profit": f"{combo_bankroll:.2f}",
+        "target_streak": int(target_streak),
         "feature_importance": feat_imp_dict
     }
     
@@ -468,6 +481,16 @@ def visualize_performance(model, X_val, y_val, target):
         json.dump(full_report, f, indent=4)
         
     print(f"\n📝 Report saved to {report_file}")
+
+    # --- 9b. Save Feature Analysis Report (Separate File) ---
+    feature_report_file = "reports/v0.5.0_feature_analysis.json"
+    feature_data = {}
+    for t, metrics in full_report.items():
+        feature_data[str(t)] = metrics.get('feature_importance', {})
+    
+    with open(feature_report_file, 'w', encoding='utf-8') as f:
+        json.dump(feature_data, f, indent=4)
+    print(f"✅ Feature Analysis Saved: {feature_report_file}")
 
 
 def train_meta_model(df, models, target=100.0):

@@ -11,7 +11,7 @@ def extract_features(df, windows=WINDOWS):
     df = df.copy()
     values = df['value']
     
-    # 1. Lag Features (Last 10 results)
+    # 1. Lag Features (Last 10 results) - Reduced from 20 to 10 by User Request v0.7.0
     for i in range(1, 11):
         df[f'lag_{i}'] = values.shift(i)
         
@@ -129,16 +129,36 @@ def extract_features(df, windows=WINDOWS):
     # At any point T, 'last_recovery_score' is the score of the most recent completed sequence.
     df['last_recovery_score'] = valid_recovery_score.ffill().infer_objects(copy=False).fillna(1.0)
 
-    # 12. Fibonacci Distance
-    # Distance of 'games_since_10x' to nearest Fib number
-    if 'games_since_10x' in df.columns:
-        fib_nums = [21, 34, 55, 89, 144, 233, 377, 610, 987]
-        # Calculate min distance to any fib
-        # (This vectorization is slightly tricky, use apply for simplicity or broadcast subtraction)
-        def get_fib_dist(val):
-            return min([abs(val - f) for f in fib_nums])
-        
-        df['fib_dist_10x'] = df['games_since_10x'].apply(get_fib_dist) 
+    # 12. Fibonacci Distance (DISABLED v0.7.0 - Noise Removal)
+    # if 'games_since_10x' in df.columns:
+    #     fib_nums = [21, 34, 55, 89, 144, 233, 377, 610, 987]
+    #     def get_fib_dist(val):
+    #         return min([abs(val - f) for f in fib_nums])
+    #     
+    #     df['fib_dist_10x'] = df['games_since_10x'].apply(get_fib_dist) 
+
+    # --- NEW v0.7.0: Professional Features ---
+    
+    # 20. EMA (Exponential Moving Average) - Sensitve Trend
+    df['ema_10'] = values.shift(1).ewm(span=10, adjust=False).mean()
+    df['ema_25'] = values.shift(1).ewm(span=25, adjust=False).mean()
+    df['ema_cross'] = df['ema_10'] - df['ema_25']
+    
+    # 21. Statistical Moments (Skewness & Kurtosis) - Anomaly Detector
+    # Skew: Direction of tail. Kurtosis: Fatness of tail (Probability of extreme events)
+    rolled_50 = values.shift(1).rolling(50)
+    df['skewness_50'] = rolled_50.skew().fillna(0)
+    df['kurtosis_50'] = rolled_50.kurt().fillna(0)
+    
+    # 22. Volatility Band Position (Bollinger Logic)
+    # Normalized position within the 2-std band. 0=Lower, 1=Upper.
+    rol_mean_20 = values.shift(1).rolling(20).mean()
+    rol_std_20 = values.shift(1).rolling(20).std()
+    
+    upper_band = rol_mean_20 + (2 * rol_std_20)
+    lower_band = rol_mean_20 - (2 * rol_std_20)
+    
+    df['band_position'] = (values.shift(1) - lower_band) / ((upper_band - lower_band) + 1e-9) 
 
     # 13. Max Pain (Umut Isini / Hope Injection)
     # Detects when the market has been "brutal" for a long time (e.g., < 1.20x).
@@ -158,6 +178,243 @@ def extract_features(df, windows=WINDOWS):
     # Sum of flips in last 5 games. 
     # 5/5 means perfect Zig-Zag -> High probability that House will BREAK the pattern (Anti-Pattern).
     df['zigzag_density_5'] = is_zigzag.rolling(5).sum().fillna(0)
+
+    # --- NEW ADVANCED FEATURES (v0.3.0) ---
     
+    # 15. Instakill Radar (Patlama Radari)
+    # Counts games since last < 1.05x
+    is_instakill_strict = (values < 1.05).astype(int)
+    # Group by cumulative sum of instakills to create segments
+    # The count within the segment is the 'games since'
+    last_insta_idx = pd.Series(np.where(is_instakill_strict, df.index, np.nan)).ffill().shift(1)
+    df['time_since_instakill'] = df.index - last_insta_idx
+    df['time_since_instakill'] = df['time_since_instakill'].fillna(100) # Default if never seen
+    
+    # Density in last 50 games
+    df['instakill_density_50'] = is_instakill_strict.shift(1).rolling(50).mean().fillna(0)
+
+    # 16. Streak Patterns (Seri Okuma)
+    # Encode last 3 games as binary pattern (Win/Loss relative to 2.0x)
+    # 1 = >= 2.0x, 0 = < 2.0x
+    w = (values >= 2.0).astype(int)
+    # Pattern = (w_t-1 * 4) + (w_t-2 * 2) + (w_t-3 * 1)
+    # Result -> 0 to 7 (8 unique patterns)
+    p1 = w.shift(1).fillna(0)
+    p2 = w.shift(2).fillna(0)
+    p3 = w.shift(3).fillna(0)
+    df['streak_pattern_3'] = (p1 * 4) + (p2 * 2) + (p3 * 1)
+
+    # 17. House Saturation (Virtual Pool)
+    # Heuristic: 
+    # < 1.50 -> House +1.0
+    # > 2.00 -> House - (Result * 0.1)
+    # > 10.0 -> House - (Result * 0.5) to drain fast
+    inputs = values.shift(1).fillna(0)
+    
+    def calc_pool_change(x):
+        if x < 1.50: return 1.0
+        elif x >= 10.0: return -(x * 0.5)
+        elif x >= 2.0: return -(x * 0.1)
+        return 0.0 # Between 1.50 and 2.0 is neutral
+        
+    pool_changes = inputs.apply(calc_pool_change)
+    # Cumulative Sum to get Pool Size
+    raw_pool = pool_changes.cumsum()
+    # Normalize: Z-Score over last 200 games to see if it's "High" relative to recent history
+    pool_mean = raw_pool.rolling(200).mean()
+    pool_std = raw_pool.rolling(200).std()
+    df['virtual_pool_score'] = ((raw_pool - pool_mean) / (pool_std + 1e-9)).fillna(0)
+
+    # 18. Macro Cycle (Derin Hafiza) - Limit 500
+    # Look back 500 games. Avg gap between 10x.
+    # We can do this vectorized by calculating rolling count of 10x in 500 games
+    # Then Average Gap = 500 / (Count + 1)
+    # Feature = Games_Since_10x / Average_Gap
+    
+    is_10x = (values >= 10.0).astype(int)
+    count_10x_500 = is_10x.shift(1).rolling(500).sum().fillna(0)
+    avg_gap_10x = 500 / (count_10x_500 + 1) 
+    
+    # We already have 'games_since_10x' from feature #6
+    if 'games_since_10x' in df.columns:
+        df['macro_cycle_10x'] = df['games_since_10x'] / (avg_gap_10x + 1e-9)
+        # > 1.0 means "Overdue" relative to local macro history
+
+    # 19. Event Profiling (Olay Tabanli Profilleme) - v0.4.0
+    # Logic: "Fingerprint" of 10x, 20x...
+    # Profile Features: 'rol_mean_10', 'streak_under_2'
+    # We find what these values were JUST BEFORE a high X occurred.
+    # Then we check if current values match that profile.
+    
+    profile_feats = ['rol_mean_10', 'streak_under_2']
+    # Ensure these exist
+    if all(f in df.columns for f in profile_feats):
+        for t in [10.0, 20.0, 30.0, 40.0, 50.0]:
+            # Identify rows where the NEXT result was >= T
+            # If df['value'][i] >= T, then row [i] contains the features PRECEDING it.
+            # (Because features at i are calculated from i-1...0)
+            # So we strictly look at rows where value >= T.
+            
+            is_event = (values >= t)
+            
+            # Create a Series that has the feature value ONLY if it's an event row, else NaN
+            # We treat 'rol_mean_10' as the signature.
+            
+            # 1. Capture Profile (Expanding Mean of features at Event times)
+            # We need to do this for each signature feature.
+            # dist = abs(Current_Feat - Historic_Event_Avg_Feat)
+            
+            total_dist = 0
+            for pf in profile_feats:
+                feat_val = df[pf]
+                # Filter: Keep value only if event happened here
+                event_feat_vals = feat_val.where(is_event)
+                # Expanding Mean: "Avg value of this feature prior to all T events seen so far"
+                hist_profile = event_feat_vals.expanding().mean()
+                # Forward Fill: Carry the last known profile forward
+                hist_profile = hist_profile.ffill().fillna(0)
+                
+                # Distance: How far is current state from the 'Ideal Event State'?
+                # Normalized distance (simple diff for now)
+                dist = (df[pf] - hist_profile).abs()
+                total_dist += dist
+            
+            # Average distance across profile features
+            df[f'dist_to_{int(t)}x_profile'] = total_dist / len(profile_feats)
+
+
+    
+    # 23. RSI (Relative Strength Index) - Short Term (7) - REQUESTED v0.8.0 for Low Targets
+    # Measures speed and change of price movements.
+    delta = values.shift(1).diff()
+    gain = (delta.where(delta > 0, 0)).fillna(0)
+    loss = (-delta.where(delta < 0, 0)).fillna(0)
+    avg_gain = gain.rolling(window=7).mean()
+    avg_loss = loss.rolling(window=7).mean()
+    rs = avg_gain / (avg_loss + 1e-9)
+    df['rsi_7'] = 100 - (100 / (1 + rs))
+    df['rsi_7'] = df['rsi_7'].fillna(50)
+
+    # 24. Streak Pattern 5 (Sequence Matcher) - REQUESTED v0.8.0 for 10x
+    # Extending streak_pattern_3 to 5 games to capture longer sequences (L-L-W-L-W)
+    # 1 = >= 2.0x, 0 = < 2.0x
+    # Pattern = Sum(w_t-k * 2^(k-1)) for k=1..5
+    p4 = w.shift(4).fillna(0)
+    p5 = w.shift(5).fillna(0)
+    df['streak_pattern_5'] = (p1 * 16) + (p2 * 8) + (p3 * 4) + (p4 * 2) + (p5 * 1)
+
+    # 25. Volatility Expansion (Double Speed) - v0.9.3
+    # Fast: For 10x-50x (Explosions). Slow: For 2x (Trends).
+    
+    # Fast (10)
+    vol_curr_fast = values.shift(1).rolling(10).std()
+    vol_prev_fast = values.shift(2).rolling(10).std()
+    df['vol_expansion_fast'] = (vol_curr_fast / (vol_prev_fast + 1e-9)).fillna(1.0)
+    
+    # Slow (15) - Reverting to v0.9.1 logic for 2x
+    vol_curr_slow = values.shift(1).rolling(15).std()
+    vol_prev_slow = values.shift(2).rolling(15).std()
+    df['vol_expansion_slow'] = (vol_curr_slow / (vol_prev_slow + 1e-9)).fillna(1.0)
+    
+    # 26. Gap Consistency (Bosluk Varyansi) - REQUESTED v0.8.0
+    # Measures the regularity of 2.0x wins. 
+    # High Variance = Chaotic (Don't play). Low Variance = Rhythmic/Safe.
+    # Logic: 
+    # 1. Identify 2x wins.
+    # 2. Calculate 'Time Since Last 2x' (Gap) at every point.
+    # 3. Collect the last 5 Gaps.
+    # 4. Calculate Std Dev of those 5 gaps.
+    
+    # We already have streak_under_2 which resets on a win.
+    # Actually, we need the gap *between* wins.
+    # Let's derive it from 'games_since_2x' derived from the hit mask.
+    # Re-using logic from Feature #6 but specifically for gaps.
+    
+    hit_2x = (values >= 2.0)
+    hit_idx = pd.Series(np.where(hit_2x, df.index, np.nan)).ffill()
+    # Shift hit_idx to find the Previous hit
+    prev_hit_idx = hit_idx.shift(1).where(hit_2x.shift(1)) # Only valid at hit points? No.
+    # We need a rolling list of gaps.
+    # Simpler approach:
+    # 1. Create a Series of Gap sizes (only at Win rows).
+    # 2. Reindex to full df (ffill). 
+    # 3. Rolling std of that series? No, we need std of the *last 5 gaps* available at time T.
+    
+    # Valid Gaps:
+    # We need the 'games_since_2x' value JUST BEFORE it resets to 0. 
+    # That value represents the gap length of the cycle that just finished.
+    # Or simply: values >= 2.0. Index diffs.
+    idx_2x = df.index[df['value'] >= 2.0]
+    gaps_2x = pd.Series(idx_2x, index=idx_2x).diff() # Gap sizes at win indices
+    
+    # We need to map these gaps back to the main dataframe.
+    # At any index T, we want the std dev of the last 5 gaps known up to T.
+    # 1. Map gaps to original index (sparse series)
+    gap_series = pd.Series(np.nan, index=df.index)
+    gap_series.loc[idx_2x] = gaps_2x
+    
+    # 2. Forward fill the gaps? No, that repeats the same gap.
+    # We need a rolling window over the VALID values.
+    # Pandas doesn't support "rolling over valid values only" easily on full index.
+    # Hack: Calculate rolling std on the sparse series (ignoring NaNs? No, rolling needs contiguous).
+    # Correct: Calculate rolling std on the COMPRESSED (only wins) series, then reindex/ffill.
+    
+    rolling_gap_std = gaps_2x.rolling(window=5).std()
+    
+    # Align back to main index using forward fill (Because at time T (loss), the market state is defined by the last known gap stats)
+    # We shift(1) because we can't see the gap of the *current* win if we are predicting it?
+    # Actually if we are predicting outcome at T, we know the history up to T-1.
+    # So we take the rolling_gap_std available at the last win, and pull it forward.
+    df['gap_std_2x'] = rolling_gap_std.reindex(df.index).ffill().shift(1).fillna(100)
+    
+    
+    # 27. Trap Detector (Tuzak Dedektoru) - REQUESTED v0.8.0
+    # Frequency of outcomes ending in .90 to .99 in last 20 games.
+    # Already computed 'is_bait' in #8 but that was rolling 150.
+    # User requested rolling 20.
+    frac_part = values % 1.0
+    is_trap = ((frac_part >= 0.90) & (frac_part <= 0.99)).astype(int)
+    df['trap_freq_20'] = is_trap.shift(1).rolling(20).mean().fillna(0)
+
     df = df.dropna()
     return df
+
+def get_model_features(target, all_columns):
+    """
+    v0.9.3 STRATEJİSİ: "OPERASYON KLON"
+    2x: Yavas Formül (Slow).
+    5x - 50x: Tek Tip "Komando". (Fast + No Profile).
+    """
+    # 1. Temel Temizlik
+    features = [c for c in all_columns if 'target' not in c and 'result' not in c and 'value' not in c and 'id' not in c]
+    
+    # 2. DÜŞÜK HEDEFLER (2.0x - 4.9x)
+    if target < 5.0:
+        # Hafıza Sınırı: 15
+        features = [f for f in features if not (f.startswith('lag_') and int(f.split('_')[1]) > 15)]
+        
+        # Yasaklılar: Profil, Ema, Skew...
+        excluded = [
+            'dist_to_', 'macro_cycle_', 
+            'ema_', 'skewness_', 'kurtosis_', 'band_position',
+            'rol_mean_100', 'rol_mean_200', 'rol_std_100', 'rol_std_200',
+            'vol_expansion_fast' # 2x Slow kullanır, Fast yasak.
+        ]
+        features = [f for f in features if not any(x in f for x in excluded)]
+        return features
+
+    # 3. YÜKSEK HEDEFLER (5.0x - 50.0x) -> "Operasyon Klon"
+    # Hepsi 10x gibi davranacak.
+    else:
+        # Sadece "Profil" (dist_to) yasak.
+        # Vol Expansion Slow yasak (Fast kullanırlar).
+        excluded_keywords = ['dist_to_', 'vol_expansion_slow']
+        
+        # v0.9.4 FIX: 30x ve 40x Volatiliteyi sevmiyor (v0.9.0 kanıtı).
+        if target in [30.0, 40.0]:
+            excluded_keywords.append('vol_expansion_fast')
+            
+        features = [f for f in features if not any(x in f for x in excluded_keywords)]
+        return features
+
+

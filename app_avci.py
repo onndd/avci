@@ -89,12 +89,90 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# Sidebar Navigation
-page = st.sidebar.radio("Sayfalar", ["🦅 Canlı Takip", "💾 Veri Yükleme"])
+# --- Load Dynamic Thresholds ---
+import json
+def load_dynamic_thresholds():
+    report_path = "reports/v0.9.4_training_metrics.json"
+    dynamic_thresholds = {}
+    
+    if os.path.exists(report_path):
+        try:
+            with open(report_path, 'r') as f:
+                data = json.load(f)
+                
+            for target_str, stats in data.items():
+                try:
+                    t = float(target_str)
+                    best_thr = float(stats.get('best_threshold', 0.5))
+                    # Set Gold to Best Threshold, Risk to slightly lower (e.g. 80% of best)
+                    dynamic_thresholds[t] = {
+                        'GOLD': best_thr,
+                        'RISK': best_thr * 0.8
+                    }
+                except:
+                    continue
+            # print("✅ Loaded Dynamic Thresholds") # Debug
+        except Exception as e:
+            print(f"⚠️ Error loading thresholds: {e}")
+            
+    return dynamic_thresholds
 
-st.sidebar.markdown("---")
-# Settings common to both or specific to Dashboard
-refresh_rate = st.sidebar.slider("Yenileme Hızı (sn)", 1, 10, 2)
+# Merge with defaults
+dynamic_thr = load_dynamic_thresholds()
+FINAL_THRESHOLDS = CARD_THRESHOLDS.copy()
+FINAL_THRESHOLDS.update(dynamic_thr)
+
+# --- SIDEBAR: Threshold Visualization ---
+with st.sidebar.expander("🎛️ Aktif Eşik Değerleri (Thresholds)", expanded=False):
+    st.caption("Eğitimden gelen dinamik veriler otomatik yüklenir.")
+    for t in sorted(TARGETS):
+        thr_data = FINAL_THRESHOLDS.get(t, FINAL_THRESHOLDS.get('DEFAULT'))
+        is_dynamic = t in dynamic_thr
+        
+        icon = "⚡" if is_dynamic else "🔒"
+        source = "Auto" if is_dynamic else "Config"
+        
+        st.markdown(f"**{t}x** ({source} {icon})")
+        c1, c2 = st.columns(2)
+        c1.metric("Gold", f"{thr_data['GOLD']:.2f}")
+        c2.metric("Risk", f"{thr_data['RISK']:.2f}")
+        st.markdown("---")
+
+# --- SIDEBAR: Intelligence Visualization ---
+with st.sidebar.expander("🧠 Avcı İstihbarat (Intelligence)", expanded=True):
+    # We need recent data to show these
+    try:
+        df_display = robust_load_data(limit=100)
+        if df_display is not None and len(df_display) > 5:
+            df_feat_disp = extract_features(df_display, windows=WINDOWS)
+            last_rec = df_feat_disp.iloc[-1]
+            
+            # Kasa Doygunluğu (Virtual Pool)
+            pool_score = last_rec.get('virtual_pool_score', 0)
+            pool_color = "🔴" if pool_score > 2.0 else "🟢" if pool_score < -1.0 else "⚪"
+            st.metric("Kasa Doygunluğu", f"{pool_score:.2f}", pool_color)
+            
+            # Patlama Radarı
+            since_insta = last_rec.get('time_since_instakill', 0)
+            st.metric("Son Patlama (1.05-)", f"{int(since_insta)} el önce")
+            
+            # Macro Aksi
+            macro_idx = last_rec.get('macro_cycle_10x', 0)
+            macro_txt = "Normal"
+            if macro_idx > 1.5: macro_txt = "GECİKTİ! (Overdue)"
+            st.metric("10x Döngüsü", f"{macro_idx:.2f}", macro_txt)
+            
+        else:
+            st.caption("Veri Bekleniyor...")
+    except Exception as e:
+        st.caption(f"Veri alınamadı: {e}")
+
+# Sidebar Navigation
+page = st.sidebar.radio("Sayfalar", ["🦅 Canlı Takip", "🧪 Simülasyon (Zincir)", "💾 Veri Yükleme"])
+
+# ... (Existing Code for Page 1 and Sidebar Settings unchanged) ...
+
+# --- PAGE 3: Simülasyon (Zincir Oyun) ---
 auto_refresh = st.sidebar.checkbox("Otomatik Yenile", value=True)
 
 # --- 1. Robust Data Loading ---
@@ -166,9 +244,9 @@ if page == "🦅 Canlı Takip":
                     # Keep input so user can fix it? Or clear? Let's keep it if error, but Streamlit callback complexity...
                     # For simplicity, we just show error toast.
 
-        # --- Single Data Entry UI ---
+        # --- Single Data Entry UI & Decision Box ---
         with st.container():
-             c1, c2 = st.columns([1, 3])
+             c1, c2 = st.columns([1, 2])
              with c1:
                  st.markdown("### ⚡ Hızlı Giriş")
                  st.text_input("Sonuç (örn: 1.50)", 
@@ -176,7 +254,12 @@ if page == "🦅 Canlı Takip":
                               placeholder="1.50", 
                               key="dash_input", 
                               on_change=submit_data)
-        
+             
+             with c2:
+                 st.markdown("### 🧠 Karar Kutusu")
+                 decision_placeholder = st.empty()
+                 decision_placeholder.info("Sinyal Bekleniyor...")
+
         st.markdown("---")
 
         models, missing_models_list = load_models_safely()
@@ -196,21 +279,51 @@ if page == "🦅 Canlı Takip":
                             try:
                                 # Ensure features match
                                 row_for_pred = last_row.drop(columns=['id', 'value'], errors='ignore')
+                                if 'value' in row_for_pred.columns: row_for_pred = row_for_pred.drop(columns=['value']) # Double check
                                 
                                 required_feats = models[t].feature_name()
                                 missing_cols = [f for f in required_feats if f not in row_for_pred.columns]
                                 
                                 if missing_cols:
-                                    st.warning(f"⚠️ Model ({t}x) Uyuşmazlığı.")
                                     current_probs[t] = -1.0
                                 else:
                                     prob = models[t].predict(row_for_pred)[0]
                                     current_probs[t] = prob
                             except Exception as e:
                                 current_probs[t] = -1.0
-                                print(f"Prediction error for {t}x: {e}")
                         else:
                             current_probs[t] = None
+                    
+                    # --- DECISION LOGIC ---
+                    decision_text = "PAS / BEKLE"
+                    decision_color = "gray"
+                    found_signal = False
+                    
+                    # Hierarchical Check (Highest to Lowest)
+                    sorted_targets = sorted(TARGETS, reverse=True)
+                    for t in sorted_targets:
+                        if current_probs.get(t) is not None:
+                            prob = current_probs[t]
+                            thresh = FINAL_THRESHOLDS.get(t, FINAL_THRESHOLDS['DEFAULT'])['GOLD']
+                            
+                            if prob >= thresh:
+                                if t >= 10.0:
+                                    decision_text = f"🚀 HEDEF: {t}x ve Üzeri!"
+                                    decision_color = "red" # High risk/reward
+                                else:
+                                    decision_text = f"✅ HEDEF: {t}x (Güvenli Liman)"
+                                    decision_color = "green"
+                                found_signal = True
+                                break # Stop at highest signal
+                    
+                    if found_signal:
+                        if decision_color == "red":
+                            decision_placeholder.error(f"🔥 {decision_text}")
+                        else:
+                            decision_placeholder.success(f"🌿 {decision_text}")
+                    else:
+                        decision_placeholder.info("💤 Sinyal Yok (Pas)")
+
                 else:
                     st.info("ℹ️ Yeterli veri yok.")
                     current_probs = {}
@@ -270,7 +383,7 @@ if page == "🦅 Canlı Takip":
                             prob_pct = prob_val * 100
                             prob_display = f"%{prob_pct:.1f}"
                             
-                            thresholds = CARD_THRESHOLDS.get(t, CARD_THRESHOLDS['DEFAULT'])
+                            thresholds = FINAL_THRESHOLDS.get(t, FINAL_THRESHOLDS['DEFAULT'])
                             
                             if prob_val > thresholds['GOLD']:
                                 card_style = "card-action"
@@ -314,6 +427,141 @@ if page == "🦅 Canlı Takip":
         if auto_refresh:
             time.sleep(10)
             st.rerun()
+
+# --- PAGE 3: Simülasyon (Zincir Oyun) ---
+elif page == "🧪 Simülasyon (Zincir)":
+    st.subheader("🧪 Zincirleme Simülasyon (Early Exit)")
+    st.caption("Modelleri geçmiş veri üzerinde test edin ve 'Erken Kaçış' kârlılığını görün.")
+
+    # 1. Load Data
+    df_sim = robust_load_data(limit=5000)
+    if df_sim is not None:
+        # 2. Simulation Settings
+        with st.expander("⚙️ Simülasyon Ayarları", expanded=True):
+            sim_limit = st.slider("Test Edilecek El Sayısı", 100, 2000, 500)
+            start_balance = st.number_input("Başlangıç Kasası", value=1000)
+            bet_size = st.number_input("Bahis Miktarı", value=10)
+            
+            # SAFE EXIT MAPPING (User Request)
+            # Model Target -> Exit Target
+            EXIT_MAP = {
+                2.0: 1.5,
+                3.0: 2.5,
+                5.0: 4.0,
+                10.0: 7.0,
+                20.0: 15.0,
+                30.0: 25.0,
+                40.0: 35.0,
+                50.0: 40.0
+            }
+            st.write("🛑 **Erken Kaçış Tablosu:**", EXIT_MAP)
+
+        if st.button("▶️ Simülasyonu Başlat"):
+            models, _ = load_models_safely()
+            
+            if len(df_sim) < sim_limit + 100: # Need buffer for features
+                st.error(f"⚠️ Yeterli veri yok. ({len(df_sim)} kayıt var)")
+            else:
+                # Prepare Simulation Data
+                # We take the LAST 'sim_limit' rows.
+                # But we need history BEFORE that for features.
+                # So we extract features on full dataset, then slice the last N.
+                
+                with st.spinner("Özellikler çıkarılıyor..."):
+                    df_feat = extract_features(df_sim, windows=WINDOWS)
+                
+                if df_feat is not None:
+                    # Slice test set
+                    test_set = df_feat.iloc[-sim_limit:].copy()
+                    
+                    # Initialize Bankrolls
+                    bankrolls = {t: [start_balance] for t in TARGETS if t in models}
+                    bankrolls['Global'] = [start_balance] # Combined? (Optional)
+                    
+                    # Stats trackers
+                    stats = {t: {'wins': 0, 'losses': 0} for t in bankrolls}
+                    
+                    progress_bar = st.progress(0)
+                    
+                    # RUN LOOP
+                    for i in range(len(test_set)):
+                        row = test_set.iloc[[i]]
+                        actual_outcome = row['value'].values[0]
+                        
+                        # Predict for each model
+                        for t in bankrolls:
+                            if t == 'Global': continue
+                            
+                            model = models[t]
+                            
+                            # Prepare Row
+                            row_for_pred = row.drop(columns=['id', 'value'], errors='ignore')
+                            if 'value' in row_for_pred.columns: row_for_pred = row_for_pred.drop(columns=['value'])
+                            
+                            # Predict
+                            try:
+                                prob = model.predict(row_for_pred)[0]
+                                thresh = FINAL_THRESHOLDS.get(t, FINAL_THRESHOLDS['DEFAULT'])['GOLD']
+                                
+                                current_bal = bankrolls[t][-1]
+                                
+                                if prob >= thresh:
+                                    # PLAY signal
+                                    # DECISION: We aim for 't', but we EXIT at 'EXIT_MAP[t]'
+                                    exit_target = EXIT_MAP.get(t, t) # Default to t if not in map
+                                    
+                                    if actual_outcome >= exit_target:
+                                        # PIN: Win
+                                        profit = (bet_size * exit_target) - bet_size
+                                        new_bal = current_bal + profit
+                                        stats[t]['wins'] += 1
+                                    else:
+                                        # LOSS
+                                        loss = bet_size
+                                        new_bal = current_bal - loss
+                                        stats[t]['losses'] += 1
+                                else:
+                                    # PASS
+                                    new_bal = current_bal
+                                
+                                bankrolls[t].append(new_bal)
+                                
+                            except:
+                                bankrolls[t].append(bankrolls[t][-1]) # Error fallback
+                        
+                        if i % 10 == 0:
+                            progress_bar.progress(i / len(test_set))
+                            
+                    progress_bar.progress(1.0)
+                    
+                    # VISUALIZE
+                    st.success("✅ Simülasyon Tamamlandı!")
+                    
+                    # 1. Line Chart
+                    chart_data = pd.DataFrame(bankrolls)
+                    st.line_chart(chart_data)
+                    
+                    # 2. Final Stats Table
+                    res_data = []
+                    for t, hist in bankrolls.items():
+                        if t == 'Global': continue
+                        final_bal = hist[-1]
+                        net = final_bal - start_balance
+                        w = stats[t]['wins']
+                        l = stats[t]['losses']
+                        total = w + l
+                        wr = (w / total * 100) if total > 0 else 0
+                        
+                        res_data.append({
+                            "Model": f"{t}x",
+                            "Son Bakiye": f"{final_bal:.2f}",
+                            "Net Kâr": f"{net:.2f}",
+                            "İşlem": total,
+                            "Win Rate": f"%{wr:.1f}"
+                        })
+                        
+                    st.table(pd.DataFrame(res_data))
+
 
 # --- PAGE 2: Veri Yükleme (Batch Upload) ---
 elif page == "💾 Veri Yükleme":
