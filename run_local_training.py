@@ -27,14 +27,19 @@ def main():
         
         try:
             # Optimize
-            study, best_params = optimize_target(df, target, epochs=20) # 20 trials for speed/check
+            study = optimize_target(df, target, n_trials=100) # 100 trials for full training
+            best_params = study.best_params
+            
+            # WFV (Validation)
+            from train_avci import walk_forward_validation
+            wfv_stats = walk_forward_validation(df, target, best_params)
             
             # Train Final
             model, X_val, y_val = train_target_final(df, target, best_params)
             trained_models[target] = model
             
             # Visualize / Report
-            visualize_performance(model, X_val, y_val, target)
+            visualize_performance(model, X_val, y_val, target, wfv_stats=wfv_stats)
             
         except Exception as e:
             print(f"❌ Failed to train target {target}x: {e}")

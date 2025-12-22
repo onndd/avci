@@ -109,6 +109,14 @@ def objective_lgbm(trial, X_train, y_train, X_val, y_val, scoring_params, use_gp
     Optuna Objective Function.
     Optimizes for HYBRID SCORE (Profit + Streak Bonus).
     """
+    # Determine Target Value from scoring params (Approximation)
+    tp_val = scoring_params['TP']
+    target_est = 2.0 # Default
+    if tp_val >= 400: target_est = 5.0
+    if tp_val >= 1000: target_est = 10.0
+    if tp_val >= 2000: target_est = 20.0
+    if tp_val >= 5000: target_est = 50.0
+    
     param = {
         'objective': 'binary',
         'metric': 'binary_logloss',
@@ -126,6 +134,18 @@ def objective_lgbm(trial, X_train, y_train, X_val, y_val, scoring_params, use_gp
         'bagging_seed': 42,
         'deterministic': True
     }
+    
+    # Class Weighting Strategy for High Curve (v0.9.8)
+    # Class Weighting Strategy for High Curve (v0.9.8 & v0.9.9)
+    if target_est >= 30.0:
+        # AGGRESSIVE ADRENALINE for Ghost Models (30x, 40x, 50x)
+        # They are too timid. Force them to care about the 1 positive sample.
+        weight = trial.suggest_categorical('scale_pos_weight', [100.0, 200.0, 500.0, 1000.0])
+        param['scale_pos_weight'] = weight
+    elif target_est >= 10.0:
+        # Moderate boost for 10x, 20x
+        weight = trial.suggest_categorical('scale_pos_weight', [1.0, 10.0, 25.0, 50.0, 100.0])
+        param['scale_pos_weight'] = weight
 
     if extra_params:
         param.update(extra_params)
@@ -146,15 +166,6 @@ def objective_lgbm(trial, X_train, y_train, X_val, y_val, scoring_params, use_gp
             raise
             
     preds_proba = model.predict(X_val)
-    
-    # Determine Target Value from scoring params (Approximation)
-    # TP values: 3.0->400, 5.0->800, 10.0->2000...
-    tp_val = scoring_params['TP']
-    target_est = 3.0
-    if tp_val > 400: target_est = 5.0
-    if tp_val > 800: target_est = 10.0
-    if tp_val > 2000: target_est = 20.0
-    if tp_val > 5000: target_est = 50.0
     
     # Find Best Threshold
     best_final_score = -float('inf')

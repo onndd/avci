@@ -92,7 +92,7 @@ st.markdown("""
 # --- Load Dynamic Thresholds ---
 import json
 def load_dynamic_thresholds():
-    report_path = "reports/v0.9.4_training_metrics.json"
+    report_path = "reports/v0.02_training_metrics.json"
     dynamic_thresholds = {}
     
     if os.path.exists(report_path):
@@ -118,9 +118,32 @@ def load_dynamic_thresholds():
     return dynamic_thresholds
 
 # Merge with defaults
-dynamic_thr = load_dynamic_thresholds()
+# dynamic_thr = load_dynamic_thresholds() # DISABLING TO ENFORCE HYBRID CONFIG (v0.01 + v0.02)
+dynamic_thr = {} # Empty dict to force usage of CARD_THRESHOLDS from config_avci.py
 FINAL_THRESHOLDS = CARD_THRESHOLDS.copy()
 FINAL_THRESHOLDS.update(dynamic_thr)
+
+# --- 1. Robust Data Loading ---
+def robust_load_data(limit=200):
+    """Safely load data with error handling."""
+    try:
+        from data_avci import load_data
+        
+        # Check if DB file exists
+        if not os.path.exists('jetx.db'):
+            st.error("⚠️ Veritabanı Bulunamadı: 'jetx.db' yok.")
+            return None
+            
+        df = load_data('jetx.db', limit=limit)
+        
+        if df is None or len(df) == 0:
+            st.warning("⚠️ Veritabanı boş veya okunamadı.")
+            return None
+            
+        return df
+    except Exception as e:
+        st.error(f"⚠️ Veri Yükleme Hatası: {str(e)}")
+        return None
 
 # --- SIDEBAR: Threshold Visualization ---
 with st.sidebar.expander("🎛️ Aktif Eşik Değerleri (Thresholds)", expanded=False):
@@ -142,7 +165,7 @@ with st.sidebar.expander("🎛️ Aktif Eşik Değerleri (Thresholds)", expanded
 with st.sidebar.expander("🧠 Avcı İstihbarat (Intelligence)", expanded=True):
     # We need recent data to show these
     try:
-        df_display = robust_load_data(limit=100)
+        df_display = robust_load_data(limit=500)
         if df_display is not None and len(df_display) > 5:
             df_feat_disp = extract_features(df_display, windows=WINDOWS)
             last_rec = df_feat_disp.iloc[-1]
@@ -174,28 +197,9 @@ page = st.sidebar.radio("Sayfalar", ["🦅 Canlı Takip", "🧪 Simülasyon (Zin
 
 # --- PAGE 3: Simülasyon (Zincir Oyun) ---
 auto_refresh = st.sidebar.checkbox("Otomatik Yenile", value=True)
+refresh_rate = st.sidebar.slider("Yenileme Hızı (sn)", 1, 30, 2)
 
-# --- 1. Robust Data Loading ---
-def robust_load_data(limit=200):
-    """Safely load data with error handling."""
-    try:
-        from data_avci import load_data
-        
-        # Check if DB file exists
-        if not os.path.exists('jetx.db'):
-            st.error("⚠️ Veritabanı Bulunamadı: 'jetx.db' yok.")
-            return None
-            
-        df = load_data('jetx.db', limit=limit)
-        
-        if df is None or len(df) == 0:
-            st.warning("⚠️ Veritabanı boş veya okunamadı.")
-            return None
-            
-        return df
-    except Exception as e:
-        st.error(f"⚠️ Veri Yükleme Hatası: {str(e)}")
-        return None
+
 
 # --- 2. Robust Model Loading ---
 @st.cache_resource
@@ -282,13 +286,11 @@ if page == "🦅 Canlı Takip":
                                 if 'value' in row_for_pred.columns: row_for_pred = row_for_pred.drop(columns=['value']) # Double check
                                 
                                 required_feats = models[t].feature_name()
-                                missing_cols = [f for f in required_feats if f not in row_for_pred.columns]
+                                # Filter and Re-order columns to match model expectations exactly
+                                row_for_pred = row_for_pred[required_feats]
                                 
-                                if missing_cols:
-                                    current_probs[t] = -1.0
-                                else:
-                                    prob = models[t].predict(row_for_pred)[0]
-                                    current_probs[t] = prob
+                                prob = models[t].predict(row_for_pred)[0]
+                                current_probs[t] = prob
                             except Exception as e:
                                 current_probs[t] = -1.0
                         else:
@@ -476,7 +478,6 @@ elif page == "🧪 Simülasyon (Zincir)":
                     
                     # Initialize Bankrolls
                     bankrolls = {t: [start_balance] for t in TARGETS if t in models}
-                    bankrolls['Global'] = [start_balance] # Combined? (Optional)
                     
                     # Stats trackers
                     stats = {t: {'wins': 0, 'losses': 0} for t in bankrolls}

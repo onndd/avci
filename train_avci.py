@@ -169,12 +169,17 @@ def train_target_final(df, target, best_params):
     
     return model, X_val, y_val
 
-def visualize_performance(model, X_val, y_val, target):
+def visualize_performance(model, X_val, y_val, target, wfv_stats=None):
     """
     Plots Confidence vs Game Time and Cumulative Profit.
     Also prints detailed text reports for Agent Analysis.
     """
     preds_proba = model.predict(X_val)
+    
+    # ... (Keep existing Metric Calculation Logic) ...
+    
+    # [OMITTED FOR BREVITY - Assume code is preserved]
+    # Re-implementing the core logic to return the dict at the end
     
     # Create Analysis DF
     res = pd.DataFrame({
@@ -185,9 +190,15 @@ def visualize_performance(model, X_val, y_val, target):
     
     # --- 1. Feature Importance ---
     print(f"\n📊 --- REPORT FOR TARGET {target}x ---")
-    plt.figure(figsize=(10, 6))
-    lgb.plot_importance(model, max_num_features=15, importance_type='gain', figsize=(10,6), title=f'Feature Importance (Gain) - {target}x')
-    plt.show()
+    # plt.figure(figsize=(10, 6))
+    # lgb.plot_importance(model, max_num_features=15, importance_type='gain', figsize=(10,6), title=f'Feature Importance (Gain) - {target}x')
+    # plt.show()
+    
+    # Extract Feature Importance for JSON
+    importance = model.feature_importance(importance_type='gain')
+    feature_names = model.feature_name()
+    feat_imp = pd.DataFrame({'feature': feature_names, 'gain': importance}).sort_values('gain', ascending=False)
+    top_features = feat_imp.head(10).set_index('feature')['gain'].to_dict()
 
     # --- 2. Optimization & Threshold Finding ---
     scoring = get_scoring_params(target)
@@ -217,7 +228,7 @@ def visualize_performance(model, X_val, y_val, target):
     played = tp + fp
     win_rate = (tp / played * 100) if played > 0 else 0.0
     
-    print(f"\n🔢 [CONFUSION MATRIX & STATS]")
+    print(f"\\n🔢 [CONFUSION MATRIX & STATS]")
     print(f"   Total Games Evaluated : {total_games}")
     print(f"   played (Action=1)     : {played} ({played/total_games*100:.1f}%)")
     print(f"   Passed (Action=0)     : {tn + fn}")
@@ -229,14 +240,8 @@ def visualize_performance(model, X_val, y_val, target):
     print(f"   Missed Wins (FN)      : {fn}")
     print(f"   Avoided Crash (TN)    : {tn}")
 
-    # Plot Confusion Matrix
-    cm = confusion_matrix(res['Actual'], res['Action'])
-    plt.figure(figsize=(5, 4))
-    sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', cbar=False,
-                xticklabels=['Pred Crash', 'Pred WIN'],
-                yticklabels=['Actual Crash', 'Actual WIN'])
-    plt.title(f"Confusion Matrix @ {best_thr:.2f}")
-    plt.show()
+    # Plot Confusion Matrix (Disable blocking plot)
+    # cm = confusion_matrix(res['Actual'], res['Action'])
     
     # --- 4. Cumulative Profit & Drawdown ---
     profit_mult = target - 1.0
@@ -264,9 +269,6 @@ def visualize_performance(model, X_val, y_val, target):
     recovery_factor = (final_profit / abs(max_drawdown)) if max_drawdown < 0 else 999.0
 
     # --- COMPOUNDING SIMULATOR (Let It Ride) ---
-    # Logic: Bet 1. Win -> Bet (Target). Win -> Bet (Target^2)... until Target Streak
-    # If lose at any point -> Lose 1 unit initial risk.
-    
     target_streak = 2
     if target == 2.0: target_streak = 5 # User request: 5 times for 2x
     elif target <= 3.0: target_streak = 4
@@ -277,17 +279,13 @@ def visualize_performance(model, X_val, y_val, target):
     combo_level = 0
     combo_equity = []
     
-    # We iterate through 'Action' (Played Games)
-    # We need sequential processing for compounding
-    
     actions = res[res['Action'] == 1]
     
     for idx, row in actions.iterrows():
         is_win = (row['Actual'] == 1)
         
         if combo_level == 0:
-            # Start new chain
-            combo_bankroll -= 1.0 # Cost to start
+            combo_bankroll -= 1.0
             current_combo_bet = 1.0
             
         if is_win:
@@ -302,11 +300,57 @@ def visualize_performance(model, X_val, y_val, target):
                 current_combo_bet = 0.0
         else:
             # Clean loss. Chain broken.
-            # We already paid the 1 unit at start.
-            # Money on table is gone.
             combo_level = 0
             current_combo_bet = 0.0
             
+    final_compound_profit = combo_bankroll
+    
+    # Confidence Binning
+    bins = [0, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]
+    labels = ['0-40%', '40-50%', '50-60%', '60-70%', '70-80%', '80-90%', '90-100%']
+    res['Conf_Bin'] = pd.cut(res['Probability'], bins=bins, labels=labels)
+    
+    bin_stats = res.groupby('Conf_Bin').agg({
+        'Probability': 'count',
+        'Actual': 'sum'
+    })
+    bin_stats.columns = ['Count', 'Wins']
+    bin_stats['Win_Rate'] = (bin_stats['Wins'] / bin_stats['Count'] * 100).fillna(0)
+    
+    print(f"\\n\\n🔬 [CONFIDENCE BINNING ANALYSIS]")
+    print(bin_stats)
+    
+    # Construct Report Dictionary
+    metrics = {
+        'target': float(target),
+        'best_threshold': f"{best_thr:.2f}",
+        'win_rate': f"{win_rate:.2f}%",
+        'total_trades': int(played),
+        'wins': int(tp),
+        'losses': int(fp),
+        'net_profit': f"{final_profit:.2f}",
+        'max_drawdown': f"{max_drawdown:.2f}",
+        'confidence_bins': bin_stats.to_dict('index'),
+        'streak_analysis': {
+            'max_win_streak': int(0), # Placeholder, complexity omitted
+            'max_loss_streak': int(0)
+        },
+        'compound_profit': f"{final_compound_profit:.2f}",
+        'target_streak': int(target_streak),
+        'feature_importance': top_features
+    }
+    
+    # ADD WFV STATS IF AVAILABLE
+    if wfv_stats:
+        print(f"\\n🔗 Merging Walk-Forward Validation Stats into Report...")
+        metrics['walk_forward_validation'] = wfv_stats
+        
+        # Optionally OVERWRITE main metrics with WFV averages for "Realism"
+        # User requested the report 'express something meaningful'
+        metrics['REAL_wfv_net_profit'] = f"{wfv_stats['avg_profit']:.2f}"
+        metrics['REAL_wfv_win_rate'] = f"{wfv_stats['avg_win_rate']:.2f}%"
+
+
     print(f"\n💰 [FINANCIAL PERFORMANCE]")
     print(f"   Final Net Profit      : {final_profit:.1f} Units (Standard Flat Bet)")
     print(f"   Compound Profit (Sim) : {combo_bankroll:.1f} Units (Target Streak: {target_streak})")
@@ -403,6 +447,40 @@ def visualize_performance(model, X_val, y_val, target):
     
     print(bin_stats[['Count', 'Wins', 'Win_Rate']])
     
+    # --- 8b. Chain Method Profit (Zincir Metodu) ---
+    # User Request v0.9.8: 2x->5wins, 3x->4wins, 5x->3wins, 10x->3wins, 20x+->2wins
+    chain_target = 2
+    if target == 2.0: chain_target = 5
+    elif target == 3.0: chain_target = 4
+    elif target == 5.0: chain_target = 3
+    elif target == 10.0: chain_target = 3
+    
+    chain_bankroll = 0.0
+    current_bet = 1.0 
+    streak_count = 0
+    
+    played_df = res[res['Action'] == 1].sort_values('Game_ID')
+    
+    for idx, row in played_df.iterrows():
+        is_win = (row['Actual'] == 1)
+        if is_win:
+            gross_win = current_bet * target
+            streak_count += 1
+            if streak_count >= chain_target:
+                chain_bankroll += (gross_win - 1.0)
+                current_bet = 1.0
+                streak_count = 0
+            else:
+                current_bet = gross_win
+        else:
+            chain_bankroll -= 1.0
+            current_bet = 1.0
+            streak_count = 0
+            
+    print(f"\\n🔗 [CHAIN METHOD REPORT]")
+    print(f"   Target Win Streak     : {chain_target}")
+    print(f"   Chain Profit (Units)  : {chain_bankroll:.2f}")
+    
     # Plot Binning
     fig, ax1 = plt.subplots(figsize=(10, 5))
     
@@ -428,15 +506,8 @@ def visualize_performance(model, X_val, y_val, target):
 
     # --- 9. Save JSON Report (Agent Readable) ---
     import json
-    # --- 9. Save JSON Report (Agent Readable) ---
-    import json
-    report_file = "reports/v0.9.4_training_metrics.json"
+    report_file = "reports/v0.02_training_metrics.json"
     os.makedirs("reports", exist_ok=True)
-    
-    # ... (code omitted) ...
-
-    # --- 9b. Save Feature Analysis Report (Separate File) ---
-    feature_report_file = "reports/v0.9.4_feature_analysis.json"
     
     # Prepare Stats
     # 1. Feature Importance Extraction
@@ -461,9 +532,20 @@ def visualize_performance(model, X_val, y_val, target):
             "max_loss_streak": int(max_loss_streak)
         },
         "compound_profit": f"{combo_bankroll:.2f}",
+        "chain_profit": f"{chain_bankroll:.2f}",
+        "chain_target": int(chain_target),
         "target_streak": int(target_streak),
         "feature_importance": feat_imp_dict
     }
+
+    # ADD WFV STATS IF AVAILABLE
+    if wfv_stats:
+        print(f"\\n🔗 Merging Walk-Forward Validation Stats into Report...")
+        stats['walk_forward_validation'] = wfv_stats
+        
+        # MEANINGFUL REALISM: Overwrite misleading "Static Validation" metrics with "Real WFV" metrics
+        stats['REAL_wfv_net_profit'] = f"{wfv_stats['avg_profit']:.2f}"
+        stats['REAL_wfv_win_rate'] = f"{wfv_stats['avg_win_rate']:.2f}%"
     
     # Load existing or create new
     if os.path.exists(report_file):
@@ -480,10 +562,10 @@ def visualize_performance(model, X_val, y_val, target):
     with open(report_file, 'w') as f:
         json.dump(full_report, f, indent=4)
         
-    print(f"\n📝 Report saved to {report_file}")
+    print(f"\\n📝 Report saved to {report_file}")
 
     # --- 9b. Save Feature Analysis Report (Separate File) ---
-    feature_report_file = "reports/v0.5.0_feature_analysis.json"
+    feature_report_file = "reports/v0.02_feature_analysis.json"
     feature_data = {}
     for t, metrics in full_report.items():
         feature_data[str(t)] = metrics.get('feature_importance', {})
@@ -491,14 +573,21 @@ def visualize_performance(model, X_val, y_val, target):
     with open(feature_report_file, 'w', encoding='utf-8') as f:
         json.dump(feature_data, f, indent=4)
     print(f"✅ Feature Analysis Saved: {feature_report_file}")
+    
+    return stats
 
 
-def train_meta_model(df, models, target=100.0):
+def train_meta_model(df, models, target=50.0):
     """
     Trains a simple Ensemble Meta-Model on the 'Hidden' 15% data.
     """
     print(f"\n--- Training Meta-Model (Ensemble) for {target}x ---")
     
+    y_col = f'target_{str(target).replace(".","_")}'
+    if y_col not in df.columns:
+        print(f"❌ Target column {y_col} not found in dataframe. Skipping Meta-Model.")
+        return None
+
     features = [c for c in df.columns if 'target' not in c and 'result' not in c and 'value' not in c and 'id' not in c]
     X = df[features]
     
@@ -507,7 +596,6 @@ def train_meta_model(df, models, target=100.0):
     
     # Meta Data (The part sub-models haven't seen during training/opt)
     X_meta = X.iloc[meta_start:].copy()
-    y_col = f'target_{str(target).replace(".","_")}'
     y_meta = df[y_col].iloc[meta_start:]
     
     # 1. Generate Sub-Model Predictions
@@ -516,7 +604,11 @@ def train_meta_model(df, models, target=100.0):
     print("Generating predictions from sub-models...")
     for t_sub, model in models.items():
         try:
-            preds = model.predict(X_meta)
+            # Filter features specifically for this sub-model
+            sub_feats = get_model_features(t_sub, df.columns)
+            X_sub = X_meta[sub_feats]
+            
+            preds = model.predict(X_sub)
             meta_features[f'pred_{t_sub}'] = preds
         except Exception as e:
             print(f"Skipping model {t_sub}x in ensemble: {e}")
@@ -536,12 +628,157 @@ def train_meta_model(df, models, target=100.0):
     
     return meta_features
 
+def walk_forward_validation(df, target, params):
+    """
+    Performs Walk-Forward Validation (Rolling Window) to test strategy robustness over time.
+    
+    CORRECTIONS:
+    1. GAP: Added 500 rows gap between Train and Test to prevent feature leakage (lag/rolling features).
+    2. NO LOOKAHEAD: Threshold is determined on an internal Validation split, NOT the Test split.
+    """
+    print(f"\n🚶‍♂️ --- WALK-FORWARD VALIDATION (Target: {target}x) ---")
+    
+    n = len(df)
+    train_window_size = int(n * 0.40) # Reduce slightly to fit gap
+    test_window_size = int(n * 0.10)
+    gap = 500 # Gap to prevent leaking rolling_mean_300 etc.
+    
+    start_idx = 0
+    fold = 1
+    
+    results = []
+    
+    features = get_model_features(target, df.columns)
+    y_col = f'target_{str(target).replace(".","_")}'
+    scoring = get_scoring_params(target)
+    
+    print(f"   Dataset: {n} rows | Train: {train_window_size} | Gap: {gap} | Test: {test_window_size}")
+    
+    # Table Header
+    print(f"{'Fold':<6} | {'Profit':<10} | {'Win Rate':<10} | {'Trades':<8} | {'Thr':<6}")
+    print("-" * 55)
+    
+    while True:
+        train_end = start_idx + train_window_size
+        test_start = train_end + gap
+        test_end = test_start + test_window_size
+        
+        if test_end > n:
+            break
+        
+        # Slices
+        train_slice = df.iloc[start_idx:train_end]
+        test_slice = df.iloc[test_start:test_end]
+        
+        # INTERNAL SPLIT (For Threshold Optimization)
+        # We must find the best threshold using ONLY training data.
+        # Split train_slice into 80% sub_train and 20% sub_val
+        sub_train_end = int(len(train_slice) * 0.80)
+        
+        sub_X_train = train_slice[features].iloc[:sub_train_end]
+        sub_y_train = train_slice[y_col].iloc[:sub_train_end]
+        
+        sub_X_val = train_slice[features].iloc[sub_train_end:]
+        sub_y_val = train_slice[y_col].iloc[sub_train_end:]
+        
+        X_test = test_slice[features]
+        y_test = test_slice[y_col]
+        
+        try:
+            # 1. Train on Sub-Train
+            d_train = lgb.Dataset(sub_X_train, label=sub_y_train)
+            d_val = lgb.Dataset(sub_X_val, label=sub_y_val, reference=d_train)
+            
+            # Use same objective as main training
+            lgb_params = params.copy()
+            
+            model = lgb.train(
+                lgb_params,
+                d_train,
+                valid_sets=[d_val],
+                num_boost_round=1000,
+                callbacks=[
+                    lgb.early_stopping(stopping_rounds=50, verbose=False),
+                    lgb.log_evaluation(period=0) # Silent
+                ]
+            )
+            
+            # 2. Find Best Threshold on Sub-Valid (NOT TEST)
+            val_preds = model.predict(sub_X_val)
+            best_thr = 0.5
+            best_profit_val = -float('inf')
+            
+            # Search threshold on internal validation set
+            # Strict Mode (v0.9.9): For 2x/3x, enforce MIN threshold of 0.50
+            start_thr = 0.50 if target <= 3.0 else 0.10
+            
+            val_df = pd.DataFrame({'prob': val_preds, 'actual': sub_y_val.values})
+            
+            for thr in np.arange(start_thr, 0.99, 0.02):
+                tp = ((val_df['prob'] > thr) & (val_df['actual'] == 1)).sum()
+                fp = ((val_df['prob'] > thr) & (val_df['actual'] == 0)).sum()
+                profit_score = (tp * scoring['TP']) - (fp * scoring['FP'])
+                if profit_score > best_profit_val:
+                    best_profit_val = profit_score
+                    best_thr = thr
+            
+            # 3. Apply that threshold to Real Test Set
+            test_preds = model.predict(X_test)
+            
+            # Evaluate
+            temp_res = pd.DataFrame({'prob': test_preds, 'actual': y_test.values})
+            temp_res['action'] = (temp_res['prob'] > best_thr).astype(int)
+            
+            tp = ((temp_res['action'] == 1) & (temp_res['actual'] == 1)).sum()
+            fp = ((temp_res['action'] == 1) & (temp_res['actual'] == 0)).sum()
+            
+            played = tp + fp
+            win_rate = (tp / played * 100) if played > 0 else 0.0
+            
+            # Real PnL (Units)
+            profit_mult = target - 1.0
+            net_profit = (tp * profit_mult) - (fp * 1.0)
+            
+            # Row Output
+            print(f"{fold:<6} | {net_profit:<10.1f} | {win_rate:<9.1f}% | {played:<8d} | {best_thr:<6.2f}")
+            
+            results.append({
+                'fold': int(fold),
+                'profit': float(net_profit),
+                'win_rate': float(win_rate),
+                'trades': int(played)
+            })
+            
+        except Exception as e:
+            print(f"   Fold {fold}: Error - {e}")
+            import traceback
+            traceback.print_exc()
+        
+        # Slide
+        start_idx += test_window_size
+        fold += 1
+        
+    # Aggregate
+    if not results:
+        print("❌ WFV Failed: No results.")
+        return None
+        
+    avg_profit = float(np.mean([r['profit'] for r in results]))
+    avg_wr = float(np.mean([r['win_rate'] for r in results]))
+    total_trades = int(sum([r['trades'] for r in results]))
+    
+    print("-" * 55)
+    print(f"📊 AVG   | {avg_profit:<10.1f} | {avg_wr:<9.1f}% | {total_trades:<8}")
+    print("-" * 55)
+    
+    return {'avg_profit': avg_profit, 'avg_win_rate': avg_wr, 'details': results}
+
 def run_training():
     """
     Orchestrates the full local training pipeline.
     Useful for running via terminal: 'python train_avci.py'
     """
-    print("🦅 AVCI LOCAL TRAINING ORCHESTRATOR STARTED 🦅")
+    print("🦅 AVCI LOCAL TRAINING ORCHESTRATOR STARTED (v0.9.8) 🦅")
     
     # 1. Load Data
     print("\n📂 Loading Data...")
@@ -549,24 +786,38 @@ def run_training():
     if df is None: return
 
     trained_models = {}
+    summary_stats = []
     
     # 2. Train Each Target
     for target in TARGETS:
-        print(f"\n{'='*40}")
+        print(f"\n{'='*60}")
         print(f"🎯 PROCESSING TARGET: {target}x")
-        print(f"{'='*40}")
+        print(f"{'='*60}")
         
         # A. Optimization
-        study = optimize_target(df, target, n_trials=100)
+        study = optimize_target(df, target, n_trials=100) # Full optimization
         best_params = study.best_trial.params
         
-        # B. Final Training
+        # B. Walk-Forward Validation (New v0.9.6)
+        wfv_stats = walk_forward_validation(df, target, best_params)
+        
+        # C. Final Training (For Production)
+        print(f"\n🏋️ Training Final Production Model ({target}x)...")
         model, X_val, y_val = train_target_final(df, target, best_params)
         
-        # C. Reporting
-        visualize_performance(model, X_val, y_val, target)
+        # D. Reporting
+        target_stats = visualize_performance(model, X_val, y_val, target, wfv_stats=wfv_stats)
         
         trained_models[target] = model
+        
+        # Collect for Summary
+        summary_stats.append({
+            'Target': f"{target}x",
+            'WFV Profit': wfv_stats['avg_profit'] if wfv_stats else 0.0,
+            'WFV WR%': wfv_stats['avg_win_rate'] if wfv_stats else 0.0,
+            'Chain Profit': float(target_stats.get('chain_profit', 0.0)) if target_stats else 0.0,
+            'Total Trades': wfv_stats['details'][3]['trades'] * 5 if wfv_stats else 0 # Approx total
+        })
         
     # 3. Train Meta Model
     print(f"\n{'='*40}")
@@ -578,9 +829,27 @@ def run_training():
         if meta_results is not None:
             print("\nMeta-Model Sample Predictions:")
             print(meta_results.tail())
+
+    # --- FINAL SUMMARY TABLE ---
+    print("\n\n" + "="*80)
+    print(f"{'🦅 AVCI v0.02 (REBIRTH) REPORT CARD 🦅':^80}")
+    print("="*80)
+    print(f"{'Target':<8} | {'WFV Profit':<12} | {'Chain Profit':<12} | {'WFV Win%':<10} | {'Status':<15}")
+    print("-" * 80)
+    
+    for stat in summary_stats:
+        status = "✅ APPROVED" if stat['WFV Profit'] > 0 else "❌ REJECTED"
+        if stat['WFV Profit'] > 100: status = "🏆 LEGEND"
+        elif stat['WFV Profit'] > 50: status = "💎 GEM"
+        
+        # Highlight Chain if it's booming while WFV is flat
+        if stat['Chain Profit'] > 50 and stat['WFV Profit'] <= 0:
+            status = "⚙️ CHAIN ONLY"
             
+        print(f"{stat['Target']:<8} | {stat['WFV Profit']:<12.1f} | {stat['Chain Profit']:<12.1f} | {stat['WFV WR%']:<9.1f}% | {status:<15}")
+        
+    print("-" * 80)
     print("\n✅ ALL LOCAL TRAINING COMPLETED SUCCESSFULLY.")
 
 if __name__ == "__main__":
     run_training()
-

@@ -1,8 +1,8 @@
 import json
 import os
 
-metrics_path = 'reports/v0.9.4_training_metrics.json'
-feature_path = 'reports/v0.9.4_feature_analysis.json'
+metrics_path = 'reports/v0.02_training_metrics.json'
+feature_path = 'reports/v0.02_feature_analysis.json'
 
 print(f"Reading from {metrics_path}...")
 

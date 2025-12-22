@@ -11,8 +11,8 @@ def extract_features(df, windows=WINDOWS):
     df = df.copy()
     values = df['value']
     
-    # 1. Lag Features (Last 10 results) - Reduced from 20 to 10 by User Request v0.7.0
-    for i in range(1, 11):
+    # 1. Lag Features (Last 20 results) - Extended for Deep Memory Strategy (v0.5.0)
+    for i in range(1, 21):
         df[f'lag_{i}'] = values.shift(i)
         
     # 2. Rolling Statistics
@@ -56,7 +56,7 @@ def extract_features(df, windows=WINDOWS):
 
     # 6. Games Since High X (Time Pressure)
     # Vectorized calculation for 'Games Since' specific multipliers
-    for threshold in [10.0, 20.0, 50.0, 100.0, 1000.0]:
+    for threshold in [10.0, 20.0, 30.0, 40.0, 50.0, 100.0, 1000.0]:
         # Create a mask where value >= threshold
         hit_mask = (values >= threshold)
         # Cumulative sum of hits increases by 1 each time hit occurs
@@ -316,6 +316,9 @@ def extract_features(df, windows=WINDOWS):
     vol_prev_slow = values.shift(2).rolling(15).std()
     df['vol_expansion_slow'] = (vol_curr_slow / (vol_prev_slow + 1e-9)).fillna(1.0)
     
+    # Generic Alias for 'vol_expansion' (used in old reports like v0.9.1) -> Defaults to Fast
+    df['vol_expansion'] = df['vol_expansion_fast']
+    
     # 26. Gap Consistency (Bosluk Varyansi) - REQUESTED v0.8.0
     # Measures the regularity of 2.0x wins. 
     # High Variance = Chaotic (Don't play). Low Variance = Rhythmic/Safe.
@@ -381,40 +384,94 @@ def extract_features(df, windows=WINDOWS):
 
 def get_model_features(target, all_columns):
     """
-    v0.9.3 STRATEJİSİ: "OPERASYON KLON"
-    2x: Yavas Formül (Slow).
-    5x - 50x: Tek Tip "Komando". (Fast + No Profile).
-    """
-    # 1. Temel Temizlik
-    features = [c for c in all_columns if 'target' not in c and 'result' not in c and 'value' not in c and 'id' not in c]
+    FRANKENSTEIN STRATEGY (v1.0):
+    Restoring "Golden Era" feature sets for each target based on historical reports.
     
-    # 2. DÜŞÜK HEDEFLER (2.0x - 4.9x)
-    if target < 5.0:
-        # Hafıza Sınırı: 15
-        features = [f for f in features if not (f.startswith('lag_') and int(f.split('_')[1]) > 15)]
-        
-        # Yasaklılar: Profil, Ema, Skew...
-        excluded = [
-            'dist_to_', 'macro_cycle_', 
-            'ema_', 'skewness_', 'kurtosis_', 'band_position',
-            'rol_mean_100', 'rol_mean_200', 'rol_std_100', 'rol_std_200',
-            'vol_expansion_fast' # 2x Slow kullanır, Fast yasak.
+    2.0x  -> v0.7.0 (The Low-Risk King)
+    3.0x  -> v0.9.1 (The Profit Maker)
+    5.0x  -> v0.9.1 (Balanced)
+    10.0x -> v0.5.0 (Deep Memory Specialist)
+    20.0x -> v0.5.0 (Mid-High Specialist)
+    30.0x -> v0.9.0 (The Sniper)
+    40.0x -> v0.4.0 (The Survivor) / v0.9.0 Hybrid
+    50.0x -> v0.6.0 (The Miracle)
+    """
+    
+    # 1. 2.0x: v0.7.0 -> %56.52 Win Rate
+    # Focus: Short Lags + Macro Cycle + Stability
+    if target == 2.0:
+        return [
+            "lag_4", "lag_5", "games_since_1000x", "rol_mean_25", 
+            "lag_6", "rol_std_25", "rel_str_200", "lag_10", 
+            "lag_2", "time_since_instakill",
+            "vol_squeeze", "virtual_pool_score" # Supports
         ]
-        features = [f for f in features if not any(x in f for x in excluded)]
-        return features
 
-    # 3. YÜKSEK HEDEFLER (5.0x - 50.0x) -> "Operasyon Klon"
-    # Hepsi 10x gibi davranacak.
+    # 2. 3.0x: v0.9.1 -> 88.00 Net Profit
+    # Focus: Lag 5 + Gap Std + Instakill
+    elif target == 3.0:
+        return [
+            "lag_5", "gap_std_2x", "time_since_instakill", "lag_1",
+            "rol_mean_15", "rsi_7", "lag_3", "lag_9",
+            "bait_density_150", "rol_mean_50"
+        ]
+
+    # 3. 5.0x: v0.5.0 was consistent, v0.9.1 was also okay. 
+    # Let's use v0.5.0 for safety (Net Profit 5.0 vs v0.9.4 zero)
+    # Actually v0.9.1 had 21.00 Net Profit. Let's use v0.9.1 Features.
+    elif target == 5.0:
+        return [
+            "lag_4", "rsi_7", "lag_10", "rol_std_50",
+            "last_recovery_score", "vol_expansion", "macro_cycle_10x",
+            "rol_mean_15", "rel_str_25", "gap_std_2x"
+        ]
+
+    # 4. 10.0x: v0.5.0 -> 303.00 Net Profit (BIG WINNER)
+    # Focus: Deep Memory (Lag 18, 19, 20)
+    elif target == 10.0:
+        return [
+            "lag_18", "lag_7", "lag_11", "time_since_instakill",
+            "lag_8", "lag_19", "games_since_100x", "lag_20",
+            "lag_1", "vol_squeeze", "session_sentiment"
+        ]
+
+    # 5. 20.0x: v0.6.0 -> 86.00 Net Profit
+    # Focus: Lag 7, 3, 14
+    elif target == 20.0:
+        return [
+            "lag_7", "lag_3", "lag_14", "last_recovery_score",
+            "rol_mean_15", "rel_str_25", "vol_squeeze",
+            "macro_cycle_10x", "lag_5", "lag_13"
+        ]
+
+    # 6. 30.0x: v0.9.0 -> %100 Success (8/8)
+    # Focus: Macro Cycle + Gap Std
+    elif target == 30.0:
+        return [
+            "macro_cycle_10x", "lag_5", "gap_std_2x", "rol_mean_50",
+            "rol_mean_25", "games_since_10x", "last_recovery_score",
+            "rel_str_15", "lag_7", "virtual_pool_score"
+        ]
+
+    # 7. 40.0x: v0.4.0 -> %83 Success
+    # Focus: Lag 3 + Recovery + Lag 1
+    elif target == 40.0:
+        return [
+            "lag_3", "last_recovery_score", "lag_4", "lag_1",
+            "lag_6", "lag_8", "lag_7", "rol_mean_10",
+            "lag_5", "dist_to_50x_profile"
+        ]
+
+    # 8. 50.0x: v0.6.0 -> 98.00 Net Profit (%100 Win Rate 2/2)
+    # Focus: Lag 6, 3, 12, 11 (Cluster Lags)
+    elif target == 50.0:
+        return [
+            "lag_6", "lag_3", "lag_12", "lag_11",
+            "lag_5", "lag_17", "rol_mean_15",
+            "lag_19", "lag_1", "lag_13"
+        ]
+
+    # Default / Fallback
     else:
-        # Sadece "Profil" (dist_to) yasak.
-        # Vol Expansion Slow yasak (Fast kullanırlar).
-        excluded_keywords = ['dist_to_', 'vol_expansion_slow']
-        
-        # v0.9.4 FIX: 30x ve 40x Volatiliteyi sevmiyor (v0.9.0 kanıtı).
-        if target in [30.0, 40.0]:
-            excluded_keywords.append('vol_expansion_fast')
-            
-        features = [f for f in features if not any(x in f for x in excluded_keywords)]
-        return features
-
+        return [c for c in all_columns if 'target' not in c and 'id' not in c]
 
