@@ -380,7 +380,48 @@ def extract_features(df, windows=WINDOWS):
     df['trap_freq_20'] = is_trap.shift(1).rolling(20).mean().fillna(0)
 
     df = df.dropna()
-    return df
+    # 6. The "Oscillator" (Sarkaç / Zig-Zag) - For 2x/3x
+    # Logic: Quantify how much the game is flipping between <1.5 and >=1.5
+    # 0 = <1.5 (Loss), 1 = >=1.5 (Win)
+    zigzag_class = (values.shift(1) >= 1.5).astype(int)
+    # Did it flip compared to previous? (1 if flip, 0 if same)
+    zigzag_flip = zigzag_class.diff().abs().fillna(0)
+    # Rolling sum of flips in last 10 games
+    df['zigzag_score_10'] = zigzag_flip.rolling(10).sum()
+    
+    # 7. The "Teaser" (Yemleme / Fakeout) - For 2x/3x avoidance
+    # Logic: Count how many results were "medium" (2x-5x) in last 20 games.
+    # High density means House is teasing/baiting, often followed by a crash.
+    is_teaser = ((values.shift(1) >= 2.0) & (values.shift(1) < 5.0)).astype(int)
+    df['fakeout_density_20'] = is_teaser.rolling(20).sum()
+    
+    # 8. "The Spring" (Yay / Sıkışma İndeksi) - For 5x
+    # Logic: How long since we saw a 4x+? If long, energy is compressed.
+    # We use a rolling check: max of last 15 games.
+    # If max < 4.0, it means we are in "Suppression Mode".
+    suppression_mask = (values.shift(1).rolling(15).max() < 4.0).astype(int)
+    # Rolling sum suggests duration/intensity of suppression
+    df['low_volatility_duration'] = suppression_mask.rolling(15).sum()
+
+    # 9. "Staircase" (Merdiven / Trend Eğim) - For 5x
+    # Logic: Is the trend ascending locally? linear regression slope of last 5 points.
+    # Simplified: (Current - 5_games_ago) check.
+    # Optimized for speed: Just check if Last > Avg(Last 5) significantly
+    df['trend_slope_5'] = (values.shift(1) - values.shift(1).rolling(5).mean())
+
+    # 10. "Recovery Phase" (Kasa Doygunluğu) - For 5x
+    # Logic: Distance from last Instakill (1.00-1.20).
+    # 5x often hits ~10-15 games AFTER an Instakill storm.
+    # We define Instakill as < 1.20
+    is_insta = (values.shift(1) < 1.20).astype(int)
+    # We want "Time Since Last Instakill" but simplified as "Density of Instakill in last 30 games"
+    # Actually, let's use a specialized decay score.
+    # If lots of instakills recently -> High Risk. If NONE for 50 games -> High Risk (Overdue).
+    # Gold Zone is "Some instakills recently but stabilizing".
+    df['recovery_phase_score'] = is_insta.rolling(30).sum() # Simple density for LightGBM to split on.
+
+    
+    return df.dropna()
 
 def get_model_features(target, all_columns):
     """
@@ -401,6 +442,7 @@ def get_model_features(target, all_columns):
     # Focus: Short Lags + Macro Cycle + Stability
     if target == 2.0:
         return [
+            "zigzag_score_10", "fakeout_density_20", # [NEW] The "Smart" Features
             "lag_4", "lag_5", "games_since_1000x", "rol_mean_25", 
             "lag_6", "rol_std_25", "rel_str_200", "lag_10", 
             "lag_2", "time_since_instakill",
@@ -411,6 +453,7 @@ def get_model_features(target, all_columns):
     # Focus: Lag 5 + Gap Std + Instakill
     elif target == 3.0:
         return [
+            "zigzag_score_10", "fakeout_density_20", # [NEW] The "Smart" Features
             "lag_5", "gap_std_2x", "time_since_instakill", "lag_1",
             "rol_mean_15", "rsi_7", "lag_3", "lag_9",
             "bait_density_150", "rol_mean_50"
@@ -421,6 +464,7 @@ def get_model_features(target, all_columns):
     # Actually v0.9.1 had 21.00 Net Profit. Let's use v0.9.1 Features.
     elif target == 5.0:
         return [
+            "low_volatility_duration", "trend_slope_5", "recovery_phase_score", # [NEW] 5x Specials
             "lag_4", "rsi_7", "lag_10", "rol_std_50",
             "last_recovery_score", "vol_expansion", "macro_cycle_10x",
             "rol_mean_15", "rel_str_25", "gap_std_2x"

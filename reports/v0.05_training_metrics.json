@@ -1,25 +1,25 @@
 {
     "2.0": {
         "target": 2.0,
-        "best_threshold": "0.58",
-        "win_rate": "0.00%",
-        "total_trades": 0,
-        "wins": 0,
-        "losses": 0,
-        "net_profit": "0.00",
-        "max_drawdown": "0.00",
+        "best_threshold": "0.45",
+        "win_rate": "50.34%",
+        "total_trades": 2672,
+        "wins": 1345,
+        "losses": 1327,
+        "net_profit": "18.00",
+        "max_drawdown": "-44.00",
         "confidence_bins": {
             "0-40%": {
-                "Count": 14,
-                "Win_Rate": 78.57142857142857
+                "Count": 0,
+                "Win_Rate": 0.0
             },
             "40-50%": {
-                "Count": 2411,
-                "Win_Rate": 48.73496474491912
+                "Count": 2361,
+                "Win_Rate": 50.105887335874634
             },
             "50-60%": {
-                "Count": 456,
-                "Win_Rate": 54.385964912280706
+                "Count": 520,
+                "Win_Rate": 48.26923076923077
             },
             "60-70%": {
                 "Count": 0,
@@ -39,40 +39,40 @@
             }
         },
         "streak_analysis": {
-            "max_win_streak": 0,
-            "max_loss_streak": 0
+            "max_win_streak": 12,
+            "max_loss_streak": 12
         },
-        "compound_profit": "0.00",
-        "chain_profit": "0.00",
+        "compound_profit": "99.00",
+        "chain_profit": "99.00",
         "chain_target": 5,
         "target_streak": 5,
         "feature_importance": {
-            "rol_mean_25": 65.0021300315857,
-            "lag_5": 61.52084994316101,
-            "virtual_pool_score": 58.9419310092926,
-            "games_since_1000x": 55.896939754486084,
-            "lag_2": 52.25906014442444,
-            "vol_squeeze": 49.23077034950256,
-            "lag_6": 44.987600564956665,
-            "lag_4": 39.44563031196594,
-            "lag_10": 31.252000093460083,
-            "time_since_instakill": 29.40121030807495
+            "vol_squeeze": 96.31116008758545,
+            "lag_6": 79.73842000961304,
+            "rol_mean_25": 74.88925123214722,
+            "lag_5": 63.00097036361694,
+            "lag_2": 50.688199043273926,
+            "lag_4": 44.95683002471924,
+            "virtual_pool_score": 41.7678599357605,
+            "games_since_1000x": 29.819490432739258,
+            "time_since_instakill": 28.916460037231445,
+            "lag_10": 14.383650302886963
         },
         "walk_forward_validation": {
-            "avg_profit": -3.8,
-            "avg_win_rate": 8.789808917197451,
+            "avg_profit": 1.2,
+            "avg_win_rate": 38.9156677799071,
             "details": [
                 {
                     "fold": 1,
-                    "profit": 0.0,
-                    "win_rate": 0.0,
-                    "trades": 0
+                    "profit": -16.0,
+                    "win_rate": 41.66666666666667,
+                    "trades": 96
                 },
                 {
                     "fold": 2,
-                    "profit": 0.0,
-                    "win_rate": 0.0,
-                    "trades": 0
+                    "profit": 3.0,
+                    "win_rate": 51.94805194805194,
+                    "trades": 77
                 },
                 {
                     "fold": 3,
@@ -82,24 +82,24 @@
                 },
                 {
                     "fold": 4,
-                    "profit": 0.0,
-                    "win_rate": 0.0,
-                    "trades": 0
+                    "profit": -6.0,
+                    "win_rate": 49.01960784313725,
+                    "trades": 306
                 },
                 {
                     "fold": 5,
-                    "profit": -19.0,
-                    "win_rate": 43.94904458598726,
-                    "trades": 157
+                    "profit": 25.0,
+                    "win_rate": 51.94401244167963,
+                    "trades": 643
                 }
             ]
         },
-        "REAL_wfv_net_profit": "-3.80",
-        "REAL_wfv_win_rate": "8.79%"
+        "REAL_wfv_net_profit": "1.20",
+        "REAL_wfv_win_rate": "38.92%"
     },
     "3.0": {
         "target": 3.0,
-        "best_threshold": "0.48",
+        "best_threshold": "0.41",
         "win_rate": "0.00%",
         "total_trades": 0,
         "wins": 0,
@@ -108,12 +108,12 @@
         "max_drawdown": "0.00",
         "confidence_bins": {
             "0-40%": {
-                "Count": 2789,
-                "Win_Rate": 33.09429903191108
+                "Count": 2837,
+                "Win_Rate": 33.38033133591822
             },
             "40-50%": {
-                "Count": 92,
-                "Win_Rate": 39.130434782608695
+                "Count": 44,
+                "Win_Rate": 27.27272727272727
             },
             "50-60%": {
                 "Count": 0,
@@ -145,16 +145,16 @@
         "chain_target": 4,
         "target_streak": 4,
         "feature_importance": {
-            "lag_3": 120.81572020053864,
-            "rol_mean_50": 101.80550980567932,
-            "rol_mean_15": 82.04614055156708,
-            "time_since_instakill": 78.8332405090332,
-            "lag_1": 77.9482592344284,
-            "lag_5": 70.82678985595703,
-            "gap_std_2x": 59.46641969680786,
-            "bait_density_150": 26.60140037536621,
-            "zigzag_score_10": 23.053309679031372,
-            "fakeout_density_20": 9.992290139198303
+            "rol_mean_15": 117.47137081623077,
+            "lag_5": 116.143336314708,
+            "lag_1": 100.6591454744339,
+            "lag_3": 72.3585205078125,
+            "rol_mean_50": 59.74085623025894,
+            "zigzag_score_10": 31.51358985900879,
+            "bait_density_150": 21.130550146102905,
+            "fakeout_density_20": 17.477498531341553,
+            "gap_std_2x": 0.0,
+            "time_since_instakill": 0.0
         },
         "walk_forward_validation": {
             "avg_profit": 0.0,
@@ -197,13 +197,13 @@
     },
     "5.0": {
         "target": 5.0,
-        "best_threshold": "0.27",
-        "win_rate": "27.78%",
-        "total_trades": 36,
-        "wins": 10,
-        "losses": 26,
-        "net_profit": "14.00",
-        "max_drawdown": "-11.00",
+        "best_threshold": "0.28",
+        "win_rate": "0.00%",
+        "total_trades": 0,
+        "wins": 0,
+        "losses": 0,
+        "net_profit": "0.00",
+        "max_drawdown": "0.00",
         "confidence_bins": {
             "0-40%": {
                 "Count": 2881,
@@ -235,28 +235,28 @@
             }
         },
         "streak_analysis": {
-            "max_win_streak": 4,
-            "max_loss_streak": 9
+            "max_win_streak": 0,
+            "max_loss_streak": 0
         },
-        "compound_profit": "97.00",
-        "chain_profit": "98.00",
+        "compound_profit": "0.00",
+        "chain_profit": "0.00",
         "chain_target": 3,
         "target_streak": 3,
         "feature_importance": {
-            "rel_str_25": 127.88808035850525,
-            "last_recovery_score": 96.49236989021301,
-            "lag_10": 94.31281018257141,
-            "rol_std_50": 89.49920928478241,
-            "rsi_7": 81.18004906177521,
-            "rol_mean_15": 78.86468005180359,
-            "lag_4": 77.36937069892883,
-            "gap_std_2x": 65.07001006603241,
-            "trend_slope_5": 49.874770641326904,
-            "recovery_phase_score": 40.02935981750488
+            "rol_mean_15": 221.4239001274109,
+            "last_recovery_score": 170.55830907821655,
+            "lag_10": 142.47171068191528,
+            "trend_slope_5": 117.34633016586304,
+            "rel_str_25": 86.78315997123718,
+            "rsi_7": 63.02024006843567,
+            "gap_std_2x": 52.97564935684204,
+            "low_volatility_duration": 0.0,
+            "recovery_phase_score": 0.0,
+            "lag_4": 0.0
         },
         "walk_forward_validation": {
-            "avg_profit": -4.6,
-            "avg_win_rate": 3.468208092485549,
+            "avg_profit": -8.6,
+            "avg_win_rate": 7.821530546035201,
             "details": [
                 {
                     "fold": 1,
@@ -272,15 +272,15 @@
                 },
                 {
                     "fold": 3,
-                    "profit": -23.0,
-                    "win_rate": 17.341040462427745,
-                    "trades": 173
+                    "profit": 39.0,
+                    "win_rate": 21.06703146374829,
+                    "trades": 731
                 },
                 {
                     "fold": 4,
-                    "profit": 0.0,
-                    "win_rate": 0.0,
-                    "trades": 0
+                    "profit": -82.0,
+                    "win_rate": 18.040621266427717,
+                    "trades": 837
                 },
                 {
                     "fold": 5,
@@ -290,71 +290,71 @@
                 }
             ]
         },
-        "REAL_wfv_net_profit": "-4.60",
-        "REAL_wfv_win_rate": "3.47%"
+        "REAL_wfv_net_profit": "-8.60",
+        "REAL_wfv_win_rate": "7.82%"
     },
     "10.0": {
         "target": 10.0,
-        "best_threshold": "0.41",
-        "win_rate": "23.00%",
-        "total_trades": 387,
-        "wins": 89,
-        "losses": 298,
-        "net_profit": "503.00",
-        "max_drawdown": "-39.00",
+        "best_threshold": "0.59",
+        "win_rate": "31.43%",
+        "total_trades": 140,
+        "wins": 44,
+        "losses": 96,
+        "net_profit": "300.00",
+        "max_drawdown": "-50.00",
         "confidence_bins": {
             "0-40%": {
-                "Count": 2485,
-                "Win_Rate": 8.209255533199194
+                "Count": 2587,
+                "Win_Rate": 9.045226130653267
             },
             "40-50%": {
-                "Count": 102,
-                "Win_Rate": 11.76470588235294
+                "Count": 92,
+                "Win_Rate": 13.043478260869565
             },
             "50-60%": {
-                "Count": 89,
-                "Win_Rate": 20.224719101123593
+                "Count": 69,
+                "Win_Rate": 5.797101449275362
             },
             "60-70%": {
-                "Count": 67,
-                "Win_Rate": 17.91044776119403
+                "Count": 41,
+                "Win_Rate": 19.51219512195122
             },
             "70-80%": {
-                "Count": 55,
-                "Win_Rate": 18.181818181818183
+                "Count": 44,
+                "Win_Rate": 15.909090909090908
             },
             "80-90%": {
-                "Count": 37,
-                "Win_Rate": 35.13513513513514
+                "Count": 23,
+                "Win_Rate": 34.78260869565217
             },
             "90-100%": {
-                "Count": 46,
-                "Win_Rate": 52.17391304347826
+                "Count": 25,
+                "Win_Rate": 80.0
             }
         },
         "streak_analysis": {
-            "max_win_streak": 15,
-            "max_loss_streak": 31
+            "max_win_streak": 27,
+            "max_loss_streak": 40
         },
-        "compound_profit": "1979.00",
-        "chain_profit": "10691.00",
+        "compound_profit": "1587.00",
+        "chain_profit": "9894.00",
         "chain_target": 3,
         "target_streak": 2,
         "feature_importance": {
-            "lag_11": 14596.169776372612,
-            "lag_20": 13484.480096613057,
-            "lag_7": 12861.434862494469,
-            "lag_18": 12569.735079306593,
-            "lag_19": 12478.600386488251,
-            "vol_squeeze": 11989.374089866877,
-            "lag_8": 11765.349975117948,
-            "games_since_100x": 11642.812483872287,
-            "session_sentiment": 10927.790701293387,
-            "time_since_instakill": 9624.242512663826
+            "lag_19": 8561.217664361,
+            "lag_11": 7455.57778163068,
+            "lag_8": 7171.463904604316,
+            "lag_7": 6939.613584239967,
+            "lag_20": 6194.649965148419,
+            "lag_18": 6105.217925444245,
+            "vol_squeeze": 5899.32042055577,
+            "games_since_100x": 5523.435399353504,
+            "lag_1": 5483.195471247658,
+            "session_sentiment": 5061.541208022274
         },
         "walk_forward_validation": {
-            "avg_profit": 16.6,
-            "avg_win_rate": 6.526266917906256,
+            "avg_profit": -1.4,
+            "avg_win_rate": 3.855670103092784,
             "details": [
                 {
                     "fold": 1,
@@ -364,21 +364,21 @@
                 },
                 {
                     "fold": 2,
-                    "profit": 10.0,
-                    "win_rate": 11.25,
-                    "trades": 80
+                    "profit": 0.0,
+                    "win_rate": 0.0,
+                    "trades": 0
                 },
                 {
                     "fold": 3,
-                    "profit": 61.0,
-                    "win_rate": 11.072056239015819,
-                    "trades": 569
+                    "profit": 0.0,
+                    "win_rate": 10.0,
+                    "trades": 820
                 },
                 {
                     "fold": 4,
-                    "profit": 12.0,
-                    "win_rate": 10.309278350515463,
-                    "trades": 388
+                    "profit": -7.0,
+                    "win_rate": 9.278350515463918,
+                    "trades": 97
                 },
                 {
                     "fold": 5,
@@ -388,22 +388,22 @@
                 }
             ]
         },
-        "REAL_wfv_net_profit": "16.60",
-        "REAL_wfv_win_rate": "6.53%"
+        "REAL_wfv_net_profit": "-1.40",
+        "REAL_wfv_win_rate": "3.86%"
     },
     "20.0": {
         "target": 20.0,
         "best_threshold": "0.10",
-        "win_rate": "5.57%",
-        "total_trades": 1867,
-        "wins": 104,
-        "losses": 1763,
-        "net_profit": "213.00",
-        "max_drawdown": "-167.00",
+        "win_rate": "4.72%",
+        "total_trades": 2881,
+        "wins": 136,
+        "losses": 2745,
+        "net_profit": "-161.00",
+        "max_drawdown": "-407.00",
         "confidence_bins": {
             "0-40%": {
-                "Count": 2881,
-                "Win_Rate": 4.720583130857341
+                "Count": 0,
+                "Win_Rate": 0.0
             },
             "40-50%": {
                 "Count": 0,
@@ -418,12 +418,12 @@
                 "Win_Rate": 0.0
             },
             "70-80%": {
-                "Count": 0,
-                "Win_Rate": 0.0
+                "Count": 31,
+                "Win_Rate": 3.225806451612903
             },
             "80-90%": {
-                "Count": 0,
-                "Win_Rate": 0.0
+                "Count": 2850,
+                "Win_Rate": 4.736842105263158
             },
             "90-100%": {
                 "Count": 0,
@@ -432,27 +432,27 @@
         },
         "streak_analysis": {
             "max_win_streak": 2,
-            "max_loss_streak": 85
+            "max_loss_streak": 131
         },
-        "compound_profit": "1030.00",
-        "chain_profit": "1030.00",
+        "compound_profit": "-351.00",
+        "chain_profit": "-351.00",
         "chain_target": 2,
         "target_streak": 2,
         "feature_importance": {
-            "vol_squeeze": 5165.9544677734375,
-            "rel_str_25": 4266.937517166138,
-            "last_recovery_score": 3694.94722366333,
-            "lag_5": 2506.856517791748,
-            "macro_cycle_10x": 2200.338065624237,
-            "rol_mean_15": 1898.1716117858887,
-            "lag_13": 1554.4277381896973,
-            "lag_14": 1300.8737983703613,
+            "rol_mean_15": 206.33050537109375,
+            "lag_14": 164.5469970703125,
+            "macro_cycle_10x": 130.21099853515625,
+            "vol_squeeze": 85.6480484008789,
+            "lag_5": 30.332300186157227,
             "lag_7": 0.0,
-            "lag_3": 0.0
+            "lag_3": 0.0,
+            "last_recovery_score": 0.0,
+            "rel_str_25": 0.0,
+            "lag_13": 0.0
         },
         "walk_forward_validation": {
-            "avg_profit": 0.6,
-            "avg_win_rate": 2.596371882086168,
+            "avg_profit": -4.6,
+            "avg_win_rate": 0.7228915662650601,
             "details": [
                 {
                     "fold": 1,
@@ -474,37 +474,37 @@
                 },
                 {
                     "fold": 4,
-                    "profit": 51.0,
-                    "win_rate": 10.204081632653061,
-                    "trades": 49
+                    "profit": 0.0,
+                    "win_rate": 0.0,
+                    "trades": 0
                 },
                 {
                     "fold": 5,
-                    "profit": -48.0,
-                    "win_rate": 2.7777777777777777,
-                    "trades": 108
+                    "profit": -23.0,
+                    "win_rate": 3.614457831325301,
+                    "trades": 83
                 }
             ]
         },
-        "REAL_wfv_net_profit": "0.60",
-        "REAL_wfv_win_rate": "2.60%"
+        "REAL_wfv_net_profit": "-4.60",
+        "REAL_wfv_win_rate": "0.72%"
     },
     "30.0": {
         "target": 30.0,
-        "best_threshold": "0.32",
-        "win_rate": "100.00%",
-        "total_trades": 1,
-        "wins": 1,
-        "losses": 0,
-        "net_profit": "29.00",
-        "max_drawdown": "0.00",
+        "best_threshold": "0.19",
+        "win_rate": "85.71%",
+        "total_trades": 7,
+        "wins": 6,
+        "losses": 1,
+        "net_profit": "173.00",
+        "max_drawdown": "-1.00",
         "confidence_bins": {
             "0-40%": {
-                "Count": 2880,
-                "Win_Rate": 2.7430555555555554
+                "Count": 2879,
+                "Win_Rate": 2.7092740534907955
             },
             "40-50%": {
-                "Count": 1,
+                "Count": 2,
                 "Win_Rate": 100.0
             },
             "50-60%": {
@@ -529,27 +529,27 @@
             }
         },
         "streak_analysis": {
-            "max_win_streak": 1,
-            "max_loss_streak": 0
+            "max_win_streak": 6,
+            "max_loss_streak": 1
         },
-        "compound_profit": "-1.00",
-        "chain_profit": "0.00",
+        "compound_profit": "2696.00",
+        "chain_profit": "2696.00",
         "chain_target": 2,
         "target_streak": 2,
         "feature_importance": {
-            "lag_7": 281.9239271965198,
-            "last_recovery_score": 242.6988962815194,
-            "rol_mean_25": 240.0376820214351,
-            "gap_std_2x": 225.73763223548303,
-            "rel_str_15": 193.36267830863653,
-            "rol_mean_50": 189.2082758487777,
-            "lag_5": 172.45986283111415,
-            "virtual_pool_score": 131.82820702633762,
-            "games_since_10x": 114.67408261993842,
-            "macro_cycle_10x": 64.27113675214332
+            "lag_7": 5207.043426348773,
+            "rol_mean_25": 5164.811138239934,
+            "rel_str_15": 5096.297650396822,
+            "last_recovery_score": 5089.781659444512,
+            "virtual_pool_score": 4468.668782441898,
+            "rol_mean_50": 4427.3113798750755,
+            "lag_5": 4378.326021207362,
+            "gap_std_2x": 4064.169430155588,
+            "macro_cycle_10x": 3926.2880640154194,
+            "games_since_10x": 1436.5070770719153
         },
         "walk_forward_validation": {
-            "avg_profit": 0.0,
+            "avg_profit": -0.6,
             "avg_win_rate": 0.0,
             "details": [
                 {
@@ -578,36 +578,36 @@
                 },
                 {
                     "fold": 5,
-                    "profit": 0.0,
+                    "profit": -3.0,
                     "win_rate": 0.0,
-                    "trades": 0
+                    "trades": 3
                 }
             ]
         },
-        "REAL_wfv_net_profit": "0.00",
+        "REAL_wfv_net_profit": "-0.60",
         "REAL_wfv_win_rate": "0.00%"
     },
     "40.0": {
         "target": 40.0,
-        "best_threshold": "0.22",
-        "win_rate": "66.67%",
-        "total_trades": 12,
-        "wins": 8,
-        "losses": 4,
-        "net_profit": "308.00",
-        "max_drawdown": "-2.00",
+        "best_threshold": "0.20",
+        "win_rate": "100.00%",
+        "total_trades": 10,
+        "wins": 10,
+        "losses": 0,
+        "net_profit": "390.00",
+        "max_drawdown": "0.00",
         "confidence_bins": {
             "0-40%": {
-                "Count": 2877,
-                "Win_Rate": 1.8074383037886685
+                "Count": 2876,
+                "Win_Rate": 1.773296244784423
             },
             "40-50%": {
                 "Count": 2,
                 "Win_Rate": 100.0
             },
             "50-60%": {
-                "Count": 0,
-                "Win_Rate": 0.0
+                "Count": 1,
+                "Win_Rate": 100.0
             },
             "60-70%": {
                 "Count": 2,
@@ -627,27 +627,125 @@
             }
         },
         "streak_analysis": {
-            "max_win_streak": 6,
-            "max_loss_streak": 2
+            "max_win_streak": 10,
+            "max_loss_streak": 0
         },
-        "compound_profit": "4793.00",
-        "chain_profit": "4793.00",
+        "compound_profit": "7995.00",
+        "chain_profit": "7995.00",
         "chain_target": 2,
         "target_streak": 2,
         "feature_importance": {
-            "lag_1": 961.6236368590405,
-            "lag_7": 854.3031728236045,
-            "rol_mean_10": 841.9774165208596,
-            "lag_4": 804.5637697193056,
-            "lag_6": 780.6848438676459,
-            "lag_3": 762.683969390112,
-            "last_recovery_score": 720.548465247033,
-            "dist_to_50x_profile": 703.9980317480316,
-            "lag_5": 623.6485504908633,
-            "lag_8": 573.704763769753
+            "lag_1": 3336.1998397433817,
+            "lag_7": 3280.806002050023,
+            "dist_to_50x_profile": 3199.752477213548,
+            "lag_4": 3195.5236307842615,
+            "rol_mean_10": 3187.867398408233,
+            "last_recovery_score": 3147.371862130929,
+            "lag_3": 3134.446333837372,
+            "lag_8": 3006.008223050747,
+            "lag_6": 2993.173049882979,
+            "lag_5": 2958.6833468960085
         },
         "walk_forward_validation": {
-            "avg_profit": -0.6,
+            "avg_profit": -0.4,
+            "avg_win_rate": 0.0,
+            "details": [
+                {
+                    "fold": 1,
+                    "profit": 0.0,
+                    "win_rate": 0.0,
+                    "trades": 0
+                },
+                {
+                    "fold": 2,
+                    "profit": 0.0,
+                    "win_rate": 0.0,
+                    "trades": 0
+                },
+                {
+                    "fold": 3,
+                    "profit": 0.0,
+                    "win_rate": 0.0,
+                    "trades": 0
+                },
+                {
+                    "fold": 4,
+                    "profit": 0.0,
+                    "win_rate": 0.0,
+                    "trades": 0
+                },
+                {
+                    "fold": 5,
+                    "profit": -2.0,
+                    "win_rate": 0.0,
+                    "trades": 2
+                }
+            ]
+        },
+        "REAL_wfv_net_profit": "-0.40",
+        "REAL_wfv_win_rate": "0.00%"
+    },
+    "50.0": {
+        "target": 50.0,
+        "best_threshold": "0.57",
+        "win_rate": "9.29%",
+        "total_trades": 140,
+        "wins": 13,
+        "losses": 127,
+        "net_profit": "510.00",
+        "max_drawdown": "-42.00",
+        "confidence_bins": {
+            "0-40%": {
+                "Count": 2517,
+                "Win_Rate": 1.3508144616607072
+            },
+            "40-50%": {
+                "Count": 153,
+                "Win_Rate": 0.6535947712418301
+            },
+            "50-60%": {
+                "Count": 100,
+                "Win_Rate": 2.0
+            },
+            "60-70%": {
+                "Count": 54,
+                "Win_Rate": 5.555555555555555
+            },
+            "70-80%": {
+                "Count": 38,
+                "Win_Rate": 2.631578947368421
+            },
+            "80-90%": {
+                "Count": 10,
+                "Win_Rate": 20.0
+            },
+            "90-100%": {
+                "Count": 9,
+                "Win_Rate": 66.66666666666666
+            }
+        },
+        "streak_analysis": {
+            "max_win_streak": 3,
+            "max_loss_streak": 42
+        },
+        "compound_profit": "7370.00",
+        "chain_profit": "7370.00",
+        "chain_target": 2,
+        "target_streak": 2,
+        "feature_importance": {
+            "lag_11": 28494.16545810504,
+            "lag_5": 27253.710515615938,
+            "lag_1": 24052.43380509119,
+            "lag_12": 23980.849574222462,
+            "rol_mean_15": 22300.762697372353,
+            "lag_17": 22086.582202845253,
+            "lag_19": 20587.645825707237,
+            "lag_3": 17206.87960093934,
+            "lag_13": 16539.04353977344,
+            "lag_6": 15701.382790002972
+        },
+        "walk_forward_validation": {
+            "avg_profit": -0.2,
             "avg_win_rate": 0.0,
             "details": [
                 {
@@ -676,111 +774,13 @@
                 },
                 {
                     "fold": 5,
-                    "profit": -2.0,
-                    "win_rate": 0.0,
-                    "trades": 2
-                }
-            ]
-        },
-        "REAL_wfv_net_profit": "-0.60",
-        "REAL_wfv_win_rate": "0.00%"
-    },
-    "50.0": {
-        "target": 50.0,
-        "best_threshold": "0.25",
-        "win_rate": "15.93%",
-        "total_trades": 113,
-        "wins": 18,
-        "losses": 95,
-        "net_profit": "787.00",
-        "max_drawdown": "-23.00",
-        "confidence_bins": {
-            "0-40%": {
-                "Count": 2828,
-                "Win_Rate": 1.2022630834512023
-            },
-            "40-50%": {
-                "Count": 17,
-                "Win_Rate": 11.76470588235294
-            },
-            "50-60%": {
-                "Count": 13,
-                "Win_Rate": 23.076923076923077
-            },
-            "60-70%": {
-                "Count": 6,
-                "Win_Rate": 16.666666666666664
-            },
-            "70-80%": {
-                "Count": 5,
-                "Win_Rate": 20.0
-            },
-            "80-90%": {
-                "Count": 1,
-                "Win_Rate": 0.0
-            },
-            "90-100%": {
-                "Count": 11,
-                "Win_Rate": 72.72727272727273
-            }
-        },
-        "streak_analysis": {
-            "max_win_streak": 5,
-            "max_loss_streak": 23
-        },
-        "compound_profit": "9901.00",
-        "chain_profit": "9901.00",
-        "chain_target": 2,
-        "target_streak": 2,
-        "feature_importance": {
-            "lag_1": 54993.85962513089,
-            "rol_mean_15": 45504.403099797666,
-            "lag_12": 40102.30681806803,
-            "lag_5": 39476.76481479406,
-            "lag_19": 33032.819448390976,
-            "lag_11": 22548.975794538856,
-            "lag_6": 21769.43656229973,
-            "lag_13": 18171.81035131216,
-            "lag_17": 17879.779013792053,
-            "lag_3": 15397.3629155159
-        },
-        "walk_forward_validation": {
-            "avg_profit": 0.0,
-            "avg_win_rate": 0.0,
-            "details": [
-                {
-                    "fold": 1,
-                    "profit": 0.0,
-                    "win_rate": 0.0,
-                    "trades": 0
-                },
-                {
-                    "fold": 2,
-                    "profit": 0.0,
-                    "win_rate": 0.0,
-                    "trades": 0
-                },
-                {
-                    "fold": 3,
-                    "profit": 0.0,
-                    "win_rate": 0.0,
-                    "trades": 0
-                },
-                {
-                    "fold": 4,
-                    "profit": 0.0,
-                    "win_rate": 0.0,
-                    "trades": 0
-                },
-                {
-                    "fold": 5,
                     "profit": 0.0,
                     "win_rate": 0.0,
                     "trades": 0
                 }
             ]
         },
-        "REAL_wfv_net_profit": "0.00",
+        "REAL_wfv_net_profit": "-0.20",
         "REAL_wfv_win_rate": "0.00%"
     }
 }
