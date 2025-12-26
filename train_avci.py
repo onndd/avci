@@ -367,7 +367,7 @@ def visualize_performance(model, X_val, y_val, target, wfv_stats=None):
     print(f"\n{'-'*30}\n📊 Saving Reports...\n{'-'*30}")
     
     import json
-    report_file = "reports/v0.06_training_metrics.json"
+    report_file = "reports/v0.05_training_metrics.json"
     
     if os.path.exists(report_file):
         try:
@@ -385,7 +385,7 @@ def visualize_performance(model, X_val, y_val, target, wfv_stats=None):
         
     print(f"\\n📝 Report saved to {report_file}")
 
-    feature_report_file = "reports/v0.06_feature_analysis.json"
+    feature_report_file = "reports/v0.05_feature_analysis.json"
     feature_data = {}
     for t, metrics in full_report.items():
         feature_data[str(t)] = metrics.get('feature_importance', {})
@@ -564,7 +564,7 @@ def walk_forward_validation(df, target, params):
     return {'avg_profit': avg_profit, 'avg_win_rate': avg_wr, 'details': results}
 
 def run_training():
-    print("🦅 AVCI LOCAL TRAINING ORCHESTRATOR STARTED (v0.6.0 - Stability Engine) 🦅")
+    print("🦅 AVCI LOCAL TRAINING ORCHESTRATOR STARTED (v0.7.0 - Total Recall) 🦅")
     print("\n📂 Loading Data...")
     df = load_and_prep(limit=200000)
     if df is None: return

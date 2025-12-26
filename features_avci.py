@@ -425,97 +425,14 @@ def extract_features(df, windows=WINDOWS):
 
 def get_model_features(target, all_columns):
     """
-    FRANKENSTEIN STRATEGY (v1.0):
-    Restoring "Golden Era" feature sets for each target based on historical reports.
-    
-    2.0x  -> v0.7.0 (The Low-Risk King)
-    3.0x  -> v0.9.1 (The Profit Maker)
-    5.0x  -> v0.9.1 (Balanced)
-    10.0x -> v0.5.0 (Deep Memory Specialist)
-    20.0x -> v0.5.0 (Mid-High Specialist)
-    30.0x -> v0.9.0 (The Sniper)
-    40.0x -> v0.4.0 (The Survivor) / v0.9.0 Hybrid
-    50.0x -> v0.6.0 (The Miracle)
+    TOTAL RECALL (Global Pool Mode):
+    Returns ALL calculated numerical features for the model to use.
+    LightGBM & Optuna will filter the noise themselves.
     """
+    # Exclude non-feature columns
+    exclude = ['game_id', 'timestamp', 'hash', 'crash', 'target_met', 'value']
+    # Also exclude dynamic target columns if present in df.columns
+    features = [c for c in all_columns if c not in exclude and 'target_' not in c and 'result' not in c and 'id' not in c]
     
-    # 1. 2.0x: v0.7.0 -> %56.52 Win Rate
-    # Focus: Short Lags + Macro Cycle + Stability
-    if target == 2.0:
-        return [
-            "zigzag_score_10", "fakeout_density_20", # [NEW] The "Smart" Features
-            "lag_4", "lag_5", "games_since_1000x", "rol_mean_25", 
-            "lag_6", "rol_std_25", "rel_str_200", "lag_10", 
-            "lag_2", "time_since_instakill",
-            "vol_squeeze", "virtual_pool_score" # Supports
-        ]
-
-    # 2. 3.0x: v0.9.1 -> 88.00 Net Profit
-    # Focus: Lag 5 + Gap Std + Instakill
-    elif target == 3.0:
-        return [
-            "zigzag_score_10", "fakeout_density_20", # [NEW] The "Smart" Features
-            "lag_5", "gap_std_2x", "time_since_instakill", "lag_1",
-            "rol_mean_15", "rsi_7", "lag_3", "lag_9",
-            "bait_density_150", "rol_mean_50"
-        ]
-
-    # 3. 5.0x: v0.5.0 was consistent, v0.9.1 was also okay. 
-    # Let's use v0.5.0 for safety (Net Profit 5.0 vs v0.9.4 zero)
-    # Actually v0.9.1 had 21.00 Net Profit. Let's use v0.9.1 Features.
-    elif target == 5.0:
-        return [
-            "low_volatility_duration", "trend_slope_5", "recovery_phase_score", # [NEW] 5x Specials
-            "lag_4", "rsi_7", "lag_10", "rol_std_50",
-            "last_recovery_score", "vol_expansion", "macro_cycle_10x",
-            "rol_mean_15", "rel_str_25", "gap_std_2x"
-        ]
-
-    # 4. 10.0x: v0.5.0 -> 303.00 Net Profit (BIG WINNER)
-    # Focus: Deep Memory (Lag 18, 19, 20)
-    elif target == 10.0:
-        return [
-            "lag_18", "lag_7", "lag_11", "time_since_instakill",
-            "lag_8", "lag_19", "games_since_100x", "lag_20",
-            "lag_1", "vol_squeeze", "session_sentiment"
-        ]
-
-    # 5. 20.0x: v0.6.0 -> 86.00 Net Profit
-    # Focus: Lag 7, 3, 14
-    elif target == 20.0:
-        return [
-            "lag_7", "lag_3", "lag_14", "last_recovery_score",
-            "rol_mean_15", "rel_str_25", "vol_squeeze",
-            "macro_cycle_10x", "lag_5", "lag_13"
-        ]
-
-    # 6. 30.0x: v0.9.0 -> %100 Success (8/8)
-    # Focus: Macro Cycle + Gap Std
-    elif target == 30.0:
-        return [
-            "macro_cycle_10x", "lag_5", "gap_std_2x", "rol_mean_50",
-            "rol_mean_25", "games_since_10x", "last_recovery_score",
-            "rel_str_15", "lag_7", "virtual_pool_score"
-        ]
-
-    # 7. 40.0x: v0.4.0 -> %83 Success
-    # Focus: Lag 3 + Recovery + Lag 1
-    elif target == 40.0:
-        return [
-            "lag_3", "last_recovery_score", "lag_4", "lag_1",
-            "lag_6", "lag_8", "lag_7", "rol_mean_10",
-            "lag_5", "dist_to_50x_profile"
-        ]
-
-    # 8. 50.0x: v0.6.0 -> 98.00 Net Profit (%100 Win Rate 2/2)
-    # Focus: Lag 6, 3, 12, 11 (Cluster Lags)
-    elif target == 50.0:
-        return [
-            "lag_6", "lag_3", "lag_12", "lag_11",
-            "lag_5", "lag_17", "rol_mean_15",
-            "lag_19", "lag_1", "lag_13"
-        ]
-
-    # Default / Fallback
-    else:
-        return [c for c in all_columns if 'target' not in c and 'id' not in c]
+    return features
 

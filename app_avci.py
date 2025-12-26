@@ -90,9 +90,10 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # --- Load Dynamic Thresholds ---
+# --- Load Dynamic Thresholds ---
 import json
 def load_dynamic_thresholds():
-    report_path = "reports/v0.02_training_metrics.json"
+    report_path = "reports/v0.05_training_metrics.json" # UPDATED to v0.5 (Total Recall)
     dynamic_thresholds = {}
     
     if os.path.exists(report_path):
@@ -111,15 +112,15 @@ def load_dynamic_thresholds():
                     }
                 except:
                     continue
-            # print("✅ Loaded Dynamic Thresholds") # Debug
+            print("✅ Loaded Dynamic Thresholds (v0.5)") 
         except Exception as e:
             print(f"⚠️ Error loading thresholds: {e}")
             
     return dynamic_thresholds
 
 # Merge with defaults
-# dynamic_thr = load_dynamic_thresholds() # DISABLING TO ENFORCE HYBRID CONFIG (v0.01 + v0.02)
-dynamic_thr = {} # Empty dict to force usage of CARD_THRESHOLDS from config_avci.py
+dynamic_thr = load_dynamic_thresholds() 
+# dynamic_thr = {} # Disabled hard override
 FINAL_THRESHOLDS = CARD_THRESHOLDS.copy()
 FINAL_THRESHOLDS.update(dynamic_thr)
 
